@@ -1,0 +1,23 @@
+<?php
+// Botora Admin — Configuration
+// Rename this file or use environment variables on your VPS
+
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_PORT', getenv('DB_PORT') ?: '3306');
+define('DB_NAME', getenv('DB_NAME') ?: 'botora_admin');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: '');
+
+define('APP_NAME', 'Botora Admin');
+define('APP_URL',  getenv('APP_URL') ?: 'http://localhost');
+define('APP_SECRET', getenv('APP_SECRET') ?: 'change-this-secret-key-in-production');
+
+// API key that Botora sends in every request (must match demarrer.bat config)
+define('API_KEY', getenv('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
+
+// Session lifetime (seconds)
+define('SESSION_LIFETIME', 3600 * 8);
+
+// Email notifications (optional)
+define('MAIL_FROM', getenv('MAIL_FROM') ?: '');
+define('MAIL_FROM_NAME', 'Botora Admin');

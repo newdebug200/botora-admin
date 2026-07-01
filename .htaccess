@@ -1,0 +1,68 @@
+# ================================================
+#  BOTORA ADMIN — .htaccess pour Hostinger
+# ================================================
+
+# PHP version (Hostinger supporte PHP 8.0+)
+AddHandler application/x-httpd-php80 .php
+
+# Désactiver le listage des répertoires
+Options -Indexes
+
+# Page d'accueil par défaut
+DirectoryIndex index.php
+
+# ------ Réécriture des URLs ------
+RewriteEngine On
+
+# Forcer HTTPS (recommandé en production)
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Bloquer l'accès aux fichiers sensibles
+RewriteRule ^config\.php$ - [F,L]
+RewriteRule ^sql/ - [F,L]
+RewriteRule ^includes/ - [F,L]
+
+# Laisser passer les fichiers/dossiers qui existent
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Rediriger tout le reste vers index.php
+RewriteRule ^ index.php [QSA,L]
+
+# ------ Sécurité ------
+
+# Bloquer l'accès aux fichiers cachés (.git, .env, etc.)
+<FilesMatch "^\.">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# Désactiver l'exécution PHP dans le dossier uploads (si tu en ajoutes un)
+<IfModule mod_php.c>
+  <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|txt|log)$">
+    php_flag engine off
+  </FilesMatch>
+</IfModule>
+
+# ------ En-têtes de sécurité ------
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ------ Cache statique ------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
+</IfModule>
+
+# ------ Compression Gzip ------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript text/plain
+</IfModule>

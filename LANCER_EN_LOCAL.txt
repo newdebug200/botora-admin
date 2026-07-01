@@ -1,0 +1,86 @@
+================================================
+  BOTORA ADMIN PANEL — LANCER EN LOCAL
+================================================
+
+PRÉREQUIS
+---------
+- PHP 8.0 ou supérieur (avec PDO et PDO_MySQL)
+- MySQL 8.0+ ou XAMPP / WAMP / MAMP
+- Git (pour cloner le projet)
+
+
+ÉTAPE 1 — Cloner le projet
+----------------------------
+  git clone https://github.com/newdebug200/botora-admin.git
+  cd botora-admin
+
+
+ÉTAPE 2 — Créer la base de données
+------------------------------------
+Ouvre MySQL (phpMyAdmin ou terminal) et exécute :
+
+  mysql -u root -p < sql/schema.sql
+
+  -> Ceci crée la base "botora_admin" avec toutes les tables
+     et insère les 4 plans par défaut.
+
+
+ÉTAPE 3 — Configurer la connexion
+-----------------------------------
+Ouvre le fichier config.php et modifie ces lignes :
+
+  define('DB_HOST', 'localhost');
+  define('DB_NAME', 'botora_admin');
+  define('DB_USER', 'root');           <- ton utilisateur MySQL
+  define('DB_PASS', '');               <- ton mot de passe MySQL
+  define('APP_URL', 'http://localhost:8080');
+  define('API_KEY', 'change-moi-en-production');
+
+
+ÉTAPE 4 — Créer le premier compte admin
+-----------------------------------------
+Dans un terminal, depuis le dossier du projet :
+
+  php -r "require 'config.php'; require 'includes/db.php'; db()->prepare('INSERT INTO admins (name,email,password_hash,role) VALUES (?,?,?,?)')->execute(['Mon Nom','admin@email.com',password_hash('monmotdepasse',PASSWORD_DEFAULT),'superadmin']); echo 'Admin cree.' . PHP_EOL;"
+
+  -> Change Mon Nom, admin@email.com et monmotdepasse par tes valeurs.
+
+
+ÉTAPE 5 — Lancer le serveur PHP local
+---------------------------------------
+  php -S localhost:8080
+
+  -> Accède sur : http://localhost:8080
+  -> Connecte-toi avec l'email et mot de passe créés à l'étape 4.
+
+
+AVEC XAMPP / WAMP
+------------------
+1. Copie le dossier botora-admin dans htdocs/ (XAMPP) ou www/ (WAMP)
+2. Crée la base via phpMyAdmin en important sql/schema.sql
+3. Modifie config.php avec tes identifiants MySQL
+4. Crée le premier admin (voir Étape 4 ci-dessus)
+5. Accède via : http://localhost/botora-admin/
+
+
+RÉSOLUTION DE PROBLÈMES
+------------------------
+- Erreur PDO / connexion refusée :
+    Vérifie DB_USER et DB_PASS dans config.php
+
+- Page blanche sans message d'erreur :
+    Ajoute en haut de index.php :
+    ini_set('display_errors', 1); error_reporting(E_ALL);
+
+- Port 8080 déjà utilisé :
+    Change le port : php -S localhost:9090
+    Et mets à jour APP_URL dans config.php en conséquence.
+
+- "Table not found" :
+    La base de données n'a pas été initialisée.
+    Relance : mysql -u root -p < sql/schema.sql
+
+
+================================================
+  EN PRODUCTION (HOSTINGER) -> voir .htaccess
+================================================

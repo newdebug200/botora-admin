@@ -21,3 +21,7 @@ define('SESSION_LIFETIME', 3600 * 8);
 // Email notifications (optional)
 define('MAIL_FROM', getenv('MAIL_FROM') ?: '');
 define('MAIL_FROM_NAME', 'Botora Admin');
+
+// Fedapay information
+define('FEDAPAY_PUBLIC_KEY', getenv('sk_live_0BBv8DpE_J_vDnw7RTMji51T') ?: '');
+define('FEDAPAY_SECRET_KEY', getenv('wh_live_9kJfHnYvh1asZKSjjFFvoG8o') ?: '');

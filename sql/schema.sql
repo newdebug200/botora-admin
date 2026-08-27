@@ -152,3 +152,18 @@ INSERT IGNORE INTO platform_features (feature_key,label,description,enabled) VAL
 ('maintenance_enabled','Mode maintenance','État de maintenance global',0),
 ('verification_triggers_enabled','Vérification WhatsApp','Déclencheurs de vérification',1),
 ('credits_enabled','Système de crédits','Facturation à la consommation',1);
+
+
+-- Activity telemetry reported by whatsapp-grok-platform
+CREATE TABLE activity_logs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NULL,
+  event_type VARCHAR(80) NOT NULL,
+  tokens_used INT UNSIGNED NULL,
+  credits_used DECIMAL(20,10) NULL,
+  payload JSON NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_activity_user_date (user_id, created_at),
+  INDEX idx_activity_type_date (event_type, created_at)
+);

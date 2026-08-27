@@ -18,7 +18,13 @@ try {
     $payments = (int)$db->query("SELECT COUNT(*) FROM payment_transactions WHERE status='approved'")->fetchColumn();
     $revenue = (float)$db->query("SELECT COALESCE(SUM(amount_xof),0) FROM payment_transactions WHERE status='approved'")->fetchColumn();
     $plans = (int)$db->query('SELECT COUNT(*) FROM plans WHERE is_active=1')->fetchColumn();
-    api_json(['ok'=>true,'users'=>$users,'credits_balance'=>$credits,'approved_payments'=>$payments,'revenue_xof'=>$revenue,'active_plans'=>$plans]);
+    $activities = (int)$db->query('SELECT COUNT(*) FROM activity_logs')->fetchColumn();
+    api_json(['ok'=>true,'users'=>$users,'credits_balance'=>$credits,'approved_payments'=>$payments,'revenue_xof'=>$revenue,'active_plans'=>$plans,'activities'=>$activities]);
+  }
+  if ($resource === 'activities' && $method === 'GET') {
+    $limit=min(200,max(1,(int)($_GET['limit']??50)));
+    $stmt=$db->query('SELECT a.*,u.email,u.name FROM activity_logs a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.created_at DESC LIMIT '.$limit);
+    api_json(['ok'=>true,'activities'=>$stmt->fetchAll()]);
   }
   if ($resource === 'users' && $method === 'GET') {
     $q = trim((string)($_GET['q'] ?? ''));

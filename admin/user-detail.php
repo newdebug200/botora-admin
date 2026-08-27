@@ -62,6 +62,10 @@ $activations = $db->prepare('SELECT * FROM activations WHERE user_id=? ORDER BY 
 $activations->execute([$id]);
 $activations = $activations->fetchAll();
 
+$activities = $db->prepare('SELECT event_type,tokens_used,credits_used,payload,created_at FROM activity_logs WHERE user_id=? ORDER BY created_at DESC LIMIT 100');
+$activities->execute([$id]);
+$activities = $activities->fetchAll();
+
 $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_ends_at']) - time()) / 86400) : null;
 ?>
 <div class="page-header">
@@ -184,6 +188,20 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     </table>
   </div>
   <?php endif; ?>
+
+  <!-- Central activity history -->
+  <div class="card" style="grid-column: 1/-1">
+    <div class="card-header"><h2>Activité de la plateforme</h2><span class="text-muted small"><?= count($activities) ?> événements récents</span></div>
+    <div class="table-responsive"><table class="table table-sm align-middle">
+      <thead><tr><th>Date</th><th>Événement</th><th>Tokens</th><th>Crédits</th><th>Détails</th></tr></thead>
+      <tbody>
+      <?php foreach ($activities as $activity): ?>
+        <tr><td><?= format_datetime($activity['created_at']) ?></td><td><span class="badge badge-primary"><?= h($activity['event_type']) ?></span></td><td><?= $activity['tokens_used'] !== null ? number_format((int)$activity['tokens_used']) : '—' ?></td><td><?= $activity['credits_used'] !== null ? number_format((float)$activity['credits_used'], 10, ',', ' ') : '—' ?></td><td><code><?= h(mb_strimwidth((string)($activity['payload'] ?? ''), 0, 120, '…')) ?></code></td></tr>
+      <?php endforeach; ?>
+      <?php if (empty($activities)): ?><tr><td colspan="5" class="text-center text-muted">Aucune activité centrale remontée pour le moment.</td></tr><?php endif; ?>
+      </tbody>
+    </table></div>
+  </div>
 
   <!-- Credit history -->
   <div class="card" style="grid-column: 1/-1">

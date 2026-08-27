@@ -30,8 +30,13 @@ define('BOTORA_ADMIN_PASSWORD', getenv('BOTORA_ADMIN_PASSWORD') ?: 'BotoraAdmin#
 define('BOTORA_ADMIN_NAME', getenv('BOTORA_ADMIN_NAME') ?: 'Botora Superadmin');
 
 define('APP_NAME', 'Botora Admin');
-define('APP_URL', getenv('APP_URL') ?: 'http://localhost');
 define('BOTORA_API_URL', rtrim(getenv('BOTORA_API_URL') ?: 'https://botora.bluelifetech.site', '/'));
+// L’URL publique est prioritaire. Une valeur localhost n’est acceptée que si
+// l’installation locale est explicitement choisie par DB_MODE=local.
+$configuredAppUrl = trim((string)(getenv('APP_URL') ?: ''));
+$isLocalUrl = $configuredAppUrl !== '' && (bool)preg_match('/^https?:\\/\\/(localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0)(?::\\d+)?(?:$|\\/)/i', $configuredAppUrl);
+if ($configuredAppUrl === '' || ($isLocalUrl && DB_MODE !== 'local')) $configuredAppUrl = BOTORA_API_URL;
+define('APP_URL', rtrim($configuredAppUrl, '/'));
 define('APP_SECRET', getenv('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', getenv('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
 

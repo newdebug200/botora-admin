@@ -46,6 +46,14 @@ function db_schema_statements(string $sql): array {
   return $statements;
 }
 
+function db_ensure_admin(PDO $pdo): void {
+  $count = (int)$pdo->query('SELECT COUNT(*) FROM admins')->fetchColumn();
+  if ($count > 0) return;
+  if (trim(BOTORA_ADMIN_EMAIL) === '' || trim(BOTORA_ADMIN_PASSWORD) === '') return;
+  $stmt = $pdo->prepare('INSERT INTO admins (name, email, password_hash, role) VALUES (?, ?, ?, ?)');
+  $stmt->execute([BOTORA_ADMIN_NAME, BOTORA_ADMIN_EMAIL, password_hash(BOTORA_ADMIN_PASSWORD, PASSWORD_DEFAULT), 'superadmin']);
+}
+
 function db_ensure_schema(PDO $pdo, array $cfg): void {
   $schemaFile = __DIR__ . '/../sql/schema.sql';
   if (!DB_AUTO_MIGRATE || !is_readable($schemaFile)) return;
@@ -66,6 +74,7 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
   $hash = hash_file('sha256', $schemaFile);
   $stmt = $pdo->prepare('INSERT INTO botora_schema_versions (id, schema_hash) VALUES (1, ?) ON DUPLICATE KEY UPDATE schema_hash = VALUES(schema_hash)');
   $stmt->execute([$hash]);
+  db_ensure_admin($pdo);
 }
 
 function db(string $source = 'active'): PDO {

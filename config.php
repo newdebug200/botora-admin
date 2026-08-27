@@ -23,6 +23,12 @@ define('DB_ONLINE_PASS', getenv('DB_ONLINE_PASS') ?: 'nunewqi_DS3');
 define('DB_MODE', strtolower(getenv('DB_MODE') ?: 'online'));
 define('DB_AUTO_MIGRATE', filter_var(getenv('DB_AUTO_MIGRATE') ?: 'true', FILTER_VALIDATE_BOOLEAN));
 
+// Premier compte créé automatiquement uniquement si aucun administrateur n’existe.
+// Remplacez ces valeurs via les variables d’environnement en production.
+define('BOTORA_ADMIN_EMAIL', getenv('BOTORA_ADMIN_EMAIL') ?: 'admin@botora.local');
+define('BOTORA_ADMIN_PASSWORD', getenv('BOTORA_ADMIN_PASSWORD') ?: 'BotoraAdmin#2026');
+define('BOTORA_ADMIN_NAME', getenv('BOTORA_ADMIN_NAME') ?: 'Botora Superadmin');
+
 define('APP_NAME', 'Botora Admin');
 define('APP_URL', getenv('APP_URL') ?: 'http://localhost');
 define('BOTORA_API_URL', rtrim(getenv('BOTORA_API_URL') ?: 'https://botora.bluelifetech.site', '/'));

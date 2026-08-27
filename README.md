@@ -97,6 +97,20 @@ Chaque requête doit inclure le header `X-Api-Key: <BOTORA_API_KEY>`.
 
 Le mode `local` utilise la base locale, le mode `online` utilise la base en ligne et le mode `dual` ouvre les deux connexions, avec la base locale comme source active historique. Le mode `dual` prépare les deux côtés mais ne réalise pas de synchronisation automatique : une synchronisation de données doit être explicitement conçue avec une règle de priorité, des identifiants stables et une gestion des conflits afin d’éviter les doublons ou les écrasements.
 
+## Premier compte administrateur automatique
+
+Après la création ou la vérification du schéma, l’application vérifie si la table `admins` contient déjà un compte. Si elle est vide, elle crée un compte `superadmin` avec les paramètres `BOTORA_ADMIN_NAME`, `BOTORA_ADMIN_EMAIL` et `BOTORA_ADMIN_PASSWORD`. Cette opération est idempotente : aucun compte existant n’est modifié.
+
+Pour remplacer les valeurs de test, définissez ces variables avant le premier chargement :
+
+```env
+BOTORA_ADMIN_NAME=Votre Nom
+BOTORA_ADMIN_EMAIL=votre-email@example.com
+BOTORA_ADMIN_PASSWORD=VotreMotDePasseFort
+```
+
+Une fois le premier compte créé, changez son mot de passe depuis les paramètres du panneau et retirez les valeurs de test de la configuration serveur.
+
 ## Rôles admin
 - **superadmin** : Accès total, gestion des admins
 - **admin** : Gestion complète des clients

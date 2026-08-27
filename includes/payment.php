@@ -1,6 +1,14 @@
 <?php
 require_once __DIR__ . '/functions.php';
 
+// Les erreurs serveur doivent rester visibles sous forme JSON pour le client
+// Node.js, tout en conservant le détail uniquement dans le journal PHP.
+set_exception_handler(function (Throwable $e): void {
+  error_log('[Botora API] ' . $e->getMessage());
+  $message = defined('APP_DEBUG') && APP_DEBUG ? $e->getMessage() : 'Erreur interne de configuration du serveur.';
+  api_json(['ok' => false, 'error' => $message], 500);
+});
+
 function payment_request_json(): array {
   $raw = file_get_contents('php://input');
   $data = json_decode($raw ?: '{}', true);
@@ -9,6 +17,7 @@ function payment_request_json(): array {
 
 function verify_service_key(): void {
   $key = $_SERVER['HTTP_X_BOTORA_SERVICE_KEY'] ?? ($_SERVER['HTTP_X_API_KEY'] ?? '');
+  if (trim((string)BOTORA_SERVICE_KEY) === '') api_json(['ok' => false, 'error' => 'Service central non configuré.'], 503);
   if (!hash_equals((string)BOTORA_SERVICE_KEY, (string)$key)) api_json(['ok' => false, 'error' => 'Unauthorized'], 401);
 }
 

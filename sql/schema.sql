@@ -127,3 +127,28 @@ CREATE TABLE payment_webhook_events (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (payment_id) REFERENCES payment_transactions(id) ON DELETE SET NULL
 );
+
+
+-- Platform feature switches managed centrally
+CREATE TABLE platform_features (
+  feature_key VARCHAR(100) PRIMARY KEY,
+  label VARCHAR(150) NOT NULL,
+  description VARCHAR(255) NULL,
+  enabled TINYINT(1) NOT NULL DEFAULT 1,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO platform_features (feature_key,label,description,enabled) VALUES
+('whatsapp_discussions_enabled','Discussions WhatsApp','Messagerie et discussions WhatsApp',1),
+('ia_enabled_global','Bot IA','Traitement IA général',1),
+('auto_replies_enabled','Réponses automatiques','Réponses automatiques du bot',1),
+('faq_enabled','FAQ automatique','Gestion des FAQ automatiques',1),
+('quick_replies_enabled','Réponses rapides','Modèles de réponses rapides',1),
+('funnel_enabled','Entonnoir de contacts','Suivi des prospects',1),
+('sentiments_enabled','Traitement des sentiments','Analyse des sentiments clients',1),
+('sensitive_keywords_enabled','Mots-clés sensibles','Alertes et mots-clés sensibles',1),
+('campaigns_enabled','Campagnes groupées','Campagnes marketing',1),
+('stats_enabled','Statistiques','Statistiques de la plateforme',1),
+('maintenance_enabled','Mode maintenance','État de maintenance global',0),
+('verification_triggers_enabled','Vérification WhatsApp','Déclencheurs de vérification',1),
+('credits_enabled','Système de crédits','Facturation à la consommation',1);

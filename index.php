@@ -46,7 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $databaseReady) {
           <p class="text-secondary mb-0">Centre de gestion de votre plateforme</p>
         </div>
     <?php if (!$databaseReady): ?>
-      <div class="alert alert-danger">La base <?= h(db_active_source()) ?> est indisponible. Vérifiez la configuration de connexion.</div>
+      <div class="alert alert-danger">
+        La base <?= h(db_active_source()) ?> est indisponible. Vérifiez la configuration de connexion.
+        <?php $dbError = $databaseStatus[db_active_source()]['message'] ?? ''; ?>
+        <?php if ($dbError): ?><br><small><?= h($dbError) ?></small><?php endif; ?>
+      </div>
     <?php elseif (DB_MODE === 'dual' && !empty($databaseStatus['online']) && !$databaseStatus['online']['ok']): ?>
       <div class="alert alert-warning">La base locale est prête, mais la base en ligne est momentanément indisponible.</div>
     <?php endif; ?>

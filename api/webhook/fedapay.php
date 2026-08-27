@@ -1,6 +1,20 @@
 <?php
 require_once __DIR__ . '/../../includes/payment.php';
+
+// Le SDK officiel est optionnel en développement et obligatoire lorsque la signature est activée.
+$autoload = __DIR__ . '/../../vendor/autoload.php';
+if (is_file($autoload)) require_once $autoload;
 $raw = file_get_contents('php://input') ?: '{}';
+if (defined('FEDAPAY_WEBHOOK_SECRET') && FEDAPAY_WEBHOOK_SECRET !== '') {
+  $signature = $_SERVER['HTTP_X_FEDAPAY_SIGNATURE'] ?? '';
+  try {
+    if (!class_exists('FedaPay\\Webhook')) throw new RuntimeException('SDK FedaPay PHP absent pour vérifier la signature.');
+    \FedaPay\Webhook::constructEvent($raw, $signature, FEDAPAY_WEBHOOK_SECRET);
+  } catch (Throwable $e) {
+    error_log('[Botora Admin] FedaPay signature: ' . $e->getMessage());
+    api_json(['ok'=>false,'error'=>'Signature webhook FedaPay invalide.'], 400);
+  }
+}
 $event = json_decode($raw, true);
 if (!is_array($event)) api_json(['ok' => false, 'error' => 'Payload JSON invalide.'], 400);
 $payload = $event['object'] ?? $event['data'] ?? $event['transaction'] ?? $event;

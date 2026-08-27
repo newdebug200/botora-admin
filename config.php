@@ -47,12 +47,7 @@ if ($configuredAppUrl === '' || ($isLocalUrl && DB_MODE !== 'local')) $configure
 define('APP_URL', rtrim($configuredAppUrl, '/'));
 define('APP_SECRET', botora_setting('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', botora_setting('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
-$configuredServiceKey = botora_setting('BOTORA_SERVICE_KEY') ?: botora_setting('BOTORA_ADMIN_SERVICE_KEY');
-$configuredApiKey = botora_setting('BOTORA_API_KEY');
-if ($configuredServiceKey === '' && $configuredApiKey !== '' && $configuredApiKey !== 'botora-api-key-change-me') $configuredServiceKey = $configuredApiKey;
-// Clé publique de développement uniquement. Remplacer en production via l’environnement.
-if ($configuredServiceKey === '') $configuredServiceKey = '4458322a84f6c7ec80d592c2edb193e0bd70f715c79270d5ef2abcab6a45c69a';
-define('BOTORA_SERVICE_KEY', $configuredServiceKey);
+// Authentification interservices désactivée pendant la phase de développement.
 define('APP_DEBUG', filter_var(botora_setting('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN));
 
 // FedaPay — use live keys only through server environment variables.

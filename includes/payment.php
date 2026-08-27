@@ -17,9 +17,8 @@ function payment_request_json(): array {
 }
 
 function verify_service_key(): void {
-  $key = $_SERVER['HTTP_X_BOTORA_SERVICE_KEY'] ?? ($_SERVER['HTTP_X_API_KEY'] ?? '');
-  if (trim((string)BOTORA_SERVICE_KEY) === '') api_json(['ok' => false, 'error' => 'Service central non configuré.'], 503);
-  if (!hash_equals((string)BOTORA_SERVICE_KEY, (string)$key)) api_json(['ok' => false, 'error' => 'Unauthorized'], 401);
+  // Contrôle interservices désactivé temporairement en développement.
+  // Les échanges seront protégés par clé après stabilisation des contrats HTTP.
 }
 
 function payment_user(array $data): array {

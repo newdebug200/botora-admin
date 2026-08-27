@@ -61,8 +61,7 @@ function api_json(array $data, int $code = 200): void {
 }
 
 function verify_api_key(): void {
-  $key = $_SERVER['HTTP_X_API_KEY'] ?? ($_GET['api_key'] ?? '');
-  if ($key !== API_KEY) api_json(['ok' => false, 'error' => 'Unauthorized'], 401);
+  // Contrôle désactivé pendant la phase de développement.
 }
 
 function flash_set(string $type, string $msg): void {

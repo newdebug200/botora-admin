@@ -43,9 +43,9 @@ define('API_KEY', getenv('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
 define('BOTORA_SERVICE_KEY', getenv('BOTORA_SERVICE_KEY') ?: API_KEY);
 
 // FedaPay — use live keys only through server environment variables.
-define('FEDAPAY_SECRET_KEY', getenv('FEDAPAY_SECRET_KEY') ?: '');
+define('FEDAPAY_SECRET_KEY', getenv('sk_live_0BBv8DpE_J_vDnw7RTMji51T') ?: '');
 define('FEDAPAY_PUBLIC_KEY', getenv('FEDAPAY_PUBLIC_KEY') ?: '');
-define('FEDAPAY_WEBHOOK_SECRET', getenv('FEDAPAY_WEBHOOK_SECRET') ?: '');
+define('FEDAPAY_WEBHOOK_SECRET', getenv('wh_live_9kJfHnYvh1asZKSjjFFvoG8o') ?: '');
 define('FEDAPAY_API_URL', rtrim(getenv('FEDAPAY_API_URL') ?: 'https://api.fedapay.com/v1', '/'));
 define('CREDIT_TOKENS_PER_CREDIT', 100000);
 define('CREDIT_VALUE_XOF', 120);

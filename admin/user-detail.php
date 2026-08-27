@@ -36,10 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   } elseif ($action === 'add_credits') {
     $amount = (int)($_POST['amount'] ?? 0);
-    $reason = trim($_POST['reason'] ?? 'Ajout manuel admin');
+    $direction = ($_POST['direction'] ?? 'add') === 'remove' ? 'remove' : 'add';
+    $signedAmount = $direction === 'remove' ? -abs($amount) : abs($amount);
+    $reason = trim($_POST['reason'] ?? ($direction === 'remove' ? 'Retrait manuel admin' : 'Ajout manuel admin'));
     if ($amount > 0) {
-      add_credits($id, $amount, $reason, $_SESSION['admin_id']);
-      flash_set('success', "{$amount} crédits ajoutés.");
+      add_credits($id, $signedAmount, $reason, $_SESSION['admin_id']);
+      flash_set('success', $direction === 'remove' ? "{$amount} crédits retirés." : "{$amount} crédits ajoutés.");
     }
   } elseif ($action === 'set_status') {
     $s = $_POST['status'] ?? '';
@@ -59,6 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $notes = trim($_POST['notes'] ?? '');
     $db->prepare('UPDATE users SET notes=?, updated_at=NOW() WHERE id=?')->execute([$notes, $id]);
     flash_set('success', 'Notes mises à jour.');
+  }
+  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+    api_json(['ok'=>true,'message'=>flash_get()['msg'] ?? 'Action exécutée.']);
   }
   header('Location: ' . APP_URL . '/admin/user-detail.php?id=' . $id); exit;
 }
@@ -111,7 +116,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <!-- Identity -->
   <div class="card">
     <div class="card-header"><h2>Informations et accès</h2></div>
-    <form method="POST" class="form-body">
+    <form method="POST" class="form-body js-admin-action" data-action-label="Informations mises à jour">
       <input type="hidden" name="action" value="update_identity">
       <div class="form-group"><label>Nom complet</label><input type="text" name="name" class="form-control" value="<?= h($user['name']) ?>" required></div>
       <div class="form-group"><label>Email de connexion</label><input type="email" name="email" class="form-control" value="<?= h($user['email']) ?>" required></div>
@@ -121,10 +126,12 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     </form>
   </div>
 
+  <div id="admin-action-alert" class="alert d-none" role="alert"></div>
+
   <!-- Add credits -->
   <div class="card">
     <div class="card-header"><h2>Ajouter des crédits</h2></div>
-    <form method="POST" class="form-body">
+    <form method="POST" class="form-body js-admin-action" data-action-label="Crédits ajoutés">
       <input type="hidden" name="action" value="add_credits">
       <div class="form-group">
         <label>Montant</label>
@@ -138,10 +145,22 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     </form>
   </div>
 
+  <!-- Remove credits -->
+  <div class="card">
+    <div class="card-header"><h2>Retirer des crédits</h2></div>
+    <form method="POST" class="form-body js-admin-action" data-action-label="Crédits retirés">
+      <input type="hidden" name="action" value="add_credits">
+      <input type="hidden" name="direction" value="remove">
+      <div class="form-group"><label>Montant</label><input type="number" name="amount" class="form-control" min="1" placeholder="Ex: 50" required></div>
+      <div class="form-group"><label>Motif</label><input type="text" name="reason" class="form-control" value="Retrait manuel admin"></div>
+      <button type="submit" class="btn btn-outline btn-block">Retirer les crédits</button>
+    </form>
+  </div>
+
   <!-- Status & Plan -->
   <div class="card">
     <div class="card-header"><h2>Statut & Plan</h2></div>
-    <form method="POST" class="form-body" style="margin-bottom:12px">
+    <form method="POST" class="form-body js-admin-action" data-action-label="Modification enregistrée" style="margin-bottom:12px">
       <input type="hidden" name="action" value="set_status">
       <div class="form-group">
         <label>Changer le statut</label>
@@ -153,7 +172,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
       </div>
       <button type="submit" class="btn btn-outline btn-block">Appliquer</button>
     </form>
-    <form method="POST" class="form-body" style="margin-bottom:12px">
+    <form method="POST" class="form-body js-admin-action" data-action-label="Modification enregistrée" style="margin-bottom:12px">
       <input type="hidden" name="action" value="set_plan">
       <div class="form-group">
         <label>Changer de plan</label>
@@ -179,7 +198,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <!-- Notes -->
   <div class="card">
     <div class="card-header"><h2>Notes internes</h2></div>
-    <form method="POST" class="form-body">
+    <form method="POST" class="form-body js-admin-action" data-action-label="Notes mises à jour">
       <input type="hidden" name="action" value="update_notes">
       <textarea name="notes" class="form-control" rows="5"><?= h($user['notes'] ?? '') ?></textarea>
       <button type="submit" class="btn btn-outline" style="margin-top:8px">Sauvegarder</button>
@@ -258,4 +277,22 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   </div>
 
 </div>
+<script>
+$(function () {
+  const $alert = $('#admin-action-alert');
+  function notify(type, message) {
+    $alert.removeClass('d-none alert-success alert-danger').addClass('alert-' + type).text(message).hide().fadeIn(180);
+    setTimeout(() => $alert.fadeOut(300, () => $alert.addClass('d-none')), 4500);
+  }
+  $('.js-admin-action').on('submit', function (event) {
+    event.preventDefault();
+    const $form = $(this), $button = $form.find('button[type=submit]'), original = $button.text();
+    $button.prop('disabled', true).text('Traitement…');
+    $.ajax({ url: window.location.href, method: 'POST', data: $form.serialize(), dataType: 'json' })
+      .done(function (response) { notify('success', response.message || ($form.data('action-label') + ' avec succès.')); setTimeout(() => window.location.reload(), 550); })
+      .fail(function (xhr) { notify('danger', xhr.responseJSON?.error || 'L’action n’a pas pu être exécutée.'); })
+      .always(function () { $button.prop('disabled', false).text(original); });
+  });
+});
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

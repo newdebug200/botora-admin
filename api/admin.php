@@ -57,17 +57,24 @@ try {
     $db->prepare('INSERT INTO credit_logs (user_id,amount,type,reason,balance_after) VALUES (?,?,?,?,?)')->execute([$user['id'],$amount,$amount>0?'add':'consume',$data['reason']??'Ajustement admin',$new]); $db->commit();
     api_json(['ok'=>true,'balance'=>$new]);
   }
-  if ($resource === 'plans' && $method === 'GET') api_json(['ok'=>true,'plans'=>$db->query('SELECT * FROM plans ORDER BY price_eur ASC')->fetchAll()]);
+  if ($resource === 'plans' && $method === 'GET') {
+    $plans = $db->query('SELECT * FROM plans ORDER BY price_xof ASC, price_eur ASC')->fetchAll();
+    foreach ($plans as &$plan) {
+      if ((float)($plan['price_xof'] ?? 0) <= 0 && (float)($plan['price_eur'] ?? 0) > 0) $plan['price_xof'] = round((float)$plan['price_eur'] * 655.957, 2);
+    }
+    unset($plan);
+    api_json(['ok'=>true,'plans'=>$plans]);
+  }
   if ($resource === 'plans' && $method === 'POST') {
     $name=trim((string)($data['name']??'')); if ($name==='') api_json(['ok'=>false,'error'=>'Nom du plan requis.'],400);
     $slug=preg_replace('/[^a-z0-9]+/','-',strtolower($name));
-    $stmt=$db->prepare('INSERT INTO plans (name,slug,credits_per_month,max_profiles,price_eur,is_active) VALUES (?,?,?,?,?,?)');
-    $stmt->execute([$name,$slug,(float)($data['credits_per_month']??$data['credits']??0),(int)($data['max_profiles']??1),(float)($data['price_eur']??$data['price']??0),!empty($data['is_active'])?1:0]);
+    $stmt=$db->prepare('INSERT INTO plans (name,slug,credits_per_month,max_profiles,price_xof,is_active) VALUES (?,?,?,?,?,?)');
+    $stmt->execute([$name,$slug,(float)($data['credits_per_month']??$data['credits']??0),(int)($data['max_profiles']??1),max(0,(float)($data['price_xof']??$data['price']??0)),!empty($data['is_active'])?1:0]);
     api_json(['ok'=>true,'id'=>(int)$db->lastInsertId()]);
   }
   if ($resource === 'plans' && $method === 'PATCH') {
     $id=(int)($data['id']??0); if (!$id) api_json(['ok'=>false,'error'=>'Plan requis.'],400); $fields=[];$params=[];
-    foreach (['name','slug','credits_per_month','max_profiles','price_eur','is_active'] as $field) if (array_key_exists($field,$data)) {$fields[]="$field=?";$params[]=$data[$field];}
+    foreach (['name','slug','credits_per_month','max_profiles','price_xof','is_active'] as $field) if (array_key_exists($field,$data)) {$fields[]="$field=?";$params[]=$data[$field];}
     if (!$fields) api_json(['ok'=>false,'error'=>'Aucune modification.'],400); $params[]=$id; $db->prepare('UPDATE plans SET '.implode(',',$fields).' WHERE id=?')->execute($params); api_json(['ok'=>true]);
   }
   if ($resource === 'plans' && $method === 'DELETE') {

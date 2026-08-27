@@ -7,12 +7,12 @@ $db = db();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
   if ($action === 'create') {
-    $db->prepare('INSERT INTO plans (name,slug,credits_per_month,max_profiles,campaigns_enabled,ia_enabled,trial_days,price_eur) VALUES (?,?,?,?,?,?,?,?)')
+    $db->prepare('INSERT INTO plans (name,slug,credits_per_month,max_profiles,campaigns_enabled,ia_enabled,trial_days,price_xof) VALUES (?,?,?,?,?,?,?,?)')
        ->execute([
          trim($_POST['name']), strtolower(trim($_POST['slug'])),
          (int)$_POST['credits_per_month'], (int)$_POST['max_profiles'],
          isset($_POST['campaigns']) ? 1 : 0, isset($_POST['ia']) ? 1 : 0,
-         (int)$_POST['trial_days'], (float)str_replace(',','.',$_POST['price_eur'])
+         (int)$_POST['trial_days'], max(0, (int)$_POST['price_xof'])
        ]);
     flash_set('success', 'Plan créé.');
   } elseif ($action === 'toggle') {
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   header('Location: ' . APP_URL . '/admin/plans.php'); exit;
 }
 
-$plans = $db->query('SELECT p.*, (SELECT COUNT(*) FROM users u WHERE u.plan_id=p.id) as user_count FROM plans p ORDER BY p.price_eur ASC')->fetchAll();
+$plans = $db->query('SELECT p.*, (SELECT COUNT(*) FROM users u WHERE u.plan_id=p.id) as user_count FROM plans p ORDER BY p.price_xof ASC')->fetchAll();
 ?>
 <div class="page-header"><h1>Plans tarifaires</h1></div>
 
@@ -39,7 +39,7 @@ $plans = $db->query('SELECT p.*, (SELECT COUNT(*) FROM users u WHERE u.plan_id=p
           <td><?= number_format($p['credits_per_month']) ?></td>
           <td><?= $p['max_profiles'] ?></td>
           <td><?= $p['trial_days'] ?>j</td>
-          <td><?= $p['price_eur'] > 0 ? number_format($p['price_eur'],2).' €' : 'Gratuit' ?></td>
+          <td><?= $p['price_xof'] > 0 ? number_format($p['price_xof'],0,',',' ').' XOF' : 'Gratuit' ?></td>
           <td><?= $p['user_count'] ?></td>
           <td><span class="badge <?= $p['is_active']?'badge-success':'badge-secondary' ?>"><?= $p['is_active']?'Actif':'Inactif' ?></span></td>
           <td>
@@ -69,7 +69,7 @@ $plans = $db->query('SELECT p.*, (SELECT COUNT(*) FROM users u WHERE u.plan_id=p
       </div>
       <div class="form-row">
         <div class="form-group"><label>Jours d'essai</label><input type="number" name="trial_days" class="form-control" value="14" min="0"></div>
-        <div class="form-group"><label>Prix (€)</label><input type="text" name="price_eur" class="form-control" value="0.00"></div>
+        <div class="form-group"><label>Prix (XOF)</label><input type="number" name="price_xof" class="form-control" value="0" min="0" step="1"></div>
       </div>
       <div class="form-group">
         <label class="checkbox-label"><input type="checkbox" name="campaigns" checked> Campagnes activées</label>

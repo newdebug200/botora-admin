@@ -67,10 +67,12 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
     } catch (PDOException $e) {
       // Les index ou colonnes déjà présents ne doivent pas empêcher le panneau
       // de démarrer. Les erreurs de connexion restent, elles, bloquantes.
-      if (!preg_match('/already exists|duplicate key name|duplicate entry/i', $e->getMessage())) throw $e;
+      if (!preg_match('/already exists|duplicate column|duplicate key name|duplicate entry/i', $e->getMessage())) throw $e;
     }
   }
   foreach ([
+    'ALTER TABLE plans ADD COLUMN price_xof DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER price_eur',
+    'UPDATE plans SET price_xof = ROUND(price_eur * 655.957, 2) WHERE price_xof = 0 AND price_eur > 0',
     'ALTER TABLE users MODIFY credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0',
     'ALTER TABLE credit_logs MODIFY amount DECIMAL(20,10) NOT NULL',
     'ALTER TABLE credit_logs MODIFY balance_after DECIMAL(20,10) NOT NULL',

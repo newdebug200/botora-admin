@@ -26,16 +26,17 @@ CREATE TABLE plans (
   ia_enabled TINYINT(1) DEFAULT 1,
   trial_days INT NOT NULL DEFAULT 14,
   price_eur DECIMAL(8,2) DEFAULT 0.00,
+  price_xof DECIMAL(14,2) NOT NULL DEFAULT 0,
   is_active TINYINT(1) DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Default plans
-INSERT INTO plans (name, slug, credits_per_month, max_profiles, campaigns_enabled, ia_enabled, trial_days, price_eur) VALUES
-('Gratuit', 'free', 50, 1, 0, 1, 14, 0.00),
-('Starter', 'starter', 500, 1, 1, 1, 14, 9.90),
-('Pro', 'pro', 2000, 3, 1, 1, 14, 29.90),
-('Partenaire', 'partner', 10000, 10, 1, 1, 30, 79.90);
+INSERT INTO plans (name, slug, credits_per_month, max_profiles, campaigns_enabled, ia_enabled, trial_days, price_eur, price_xof) VALUES
+('Gratuit', 'free', 50, 1, 0, 1, 14, 0.00, 0),
+('Starter', 'starter', 500, 1, 1, 1, 14, 9.90, 6494),
+('Pro', 'pro', 2000, 3, 1, 1, 14, 29.90, 19611),
+('Partenaire', 'partner', 10000, 10, 1, 1, 30, 79.90, 52459);
 
 -- Clients (Botora users)
 CREATE TABLE users (

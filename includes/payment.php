@@ -46,6 +46,7 @@ function payment_user(array $data): array {
 }
 
 function fedapay_request(string $method, string $path, ?array $payload = null): array {
+  if (!function_exists('curl_init')) throw new RuntimeException('Extension PHP cURL non activée.');
   if (FEDAPAY_SECRET_KEY === '') throw new RuntimeException('FEDAPAY_SECRET_KEY non configurée.');
   $ch = curl_init(FEDAPAY_API_URL . '/' . ltrim($path, '/'));
   $headers = ['Authorization: Bearer ' . FEDAPAY_SECRET_KEY, 'Content-Type: application/json', 'Accept: application/json'];

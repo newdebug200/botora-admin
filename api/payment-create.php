@@ -33,5 +33,7 @@ try {
 } catch (Throwable $e) {
   if (!empty($paymentId)) $db->prepare('UPDATE payment_transactions SET status=?, metadata=? WHERE id=?')->execute(['creation_failed', json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE), $paymentId]);
   error_log('[Botora Admin] FedaPay create: ' . $e->getMessage());
-  api_json(['ok' => false, 'error' => 'Impossible de créer le paiement FedaPay.'], 502);
+  $response = ['ok' => false, 'error' => 'Impossible de créer le paiement FedaPay.'];
+  if (defined('APP_DEBUG') && APP_DEBUG) $response['details'] = $e->getMessage();
+  api_json($response, 502);
 }

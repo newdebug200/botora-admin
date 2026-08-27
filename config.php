@@ -15,11 +15,11 @@ define('DB_LOCAL_PORT', getenv('DB_LOCAL_PORT') ?: DB_PORT);
 define('DB_LOCAL_NAME', getenv('DB_LOCAL_NAME') ?: DB_NAME);
 define('DB_LOCAL_USER', getenv('DB_LOCAL_USER') ?: DB_USER);
 define('DB_LOCAL_PASS', getenv('DB_LOCAL_PASS') ?: DB_PASS);
-define('DB_ONLINE_HOST', getenv('DB_ONLINE_HOST') ?: DB_HOST);
-define('DB_ONLINE_PORT', getenv('DB_ONLINE_PORT') ?: DB_PORT);
-define('DB_ONLINE_NAME', getenv('DB_ONLINE_NAME') ?: DB_NAME);
-define('DB_ONLINE_USER', getenv('DB_ONLINE_USER') ?: DB_USER);
-define('DB_ONLINE_PASS', getenv('DB_ONLINE_PASS') ?: DB_PASS);
+define('DB_ONLINE_HOST', getenv('DB_ONLINE_HOST') ?: 'localhost');
+define('DB_ONLINE_PORT', getenv('DB_ONLINE_PORT') ?: '3306');
+define('DB_ONLINE_NAME', getenv('DB_ONLINE_NAME') ?: 'u920435648_botora_dbname');
+define('DB_ONLINE_USER', getenv('DB_ONLINE_USER') ?: 'u920435648_botora_usrname');
+define('DB_ONLINE_PASS', getenv('DB_ONLINE_PASS') ?: 'nunewqi_DS3');
 define('DB_MODE', strtolower(getenv('DB_MODE') ?: 'local'));
 define('DB_AUTO_MIGRATE', filter_var(getenv('DB_AUTO_MIGRATE') ?: 'true', FILTER_VALIDATE_BOOLEAN));
 

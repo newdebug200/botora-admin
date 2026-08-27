@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/db.php';
 
 // Les erreurs serveur doivent rester visibles sous forme JSON pour le client
 // Node.js, tout en conservant le détail uniquement dans le journal PHP.

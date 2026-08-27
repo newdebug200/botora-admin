@@ -1,6 +1,6 @@
 <?php
 // Botora Admin — Configuration
-// Rename this file or use environment variables on your VPS
+// Toutes les valeurs sensibles peuvent être fournies par des variables d'environnement.
 
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 define('DB_PORT', getenv('DB_PORT') ?: '3306');
@@ -8,26 +8,36 @@ define('DB_NAME', getenv('DB_NAME') ?: 'botora_admin');
 define('DB_USER', getenv('DB_USER') ?: 'root');
 define('DB_PASS', getenv('DB_PASS') ?: '');
 
-define('APP_NAME', 'Botora Admin');
-define('APP_URL',  getenv('APP_URL') ?: 'http://localhost');
-define('APP_SECRET', getenv('APP_SECRET') ?: 'change-this-secret-key-in-production');
+// Base locale et base en ligne. En l'absence de valeurs dédiées, le mode
+// historique DB_* reste utilisé pour préserver la compatibilité.
+define('DB_LOCAL_HOST', getenv('DB_LOCAL_HOST') ?: DB_HOST);
+define('DB_LOCAL_PORT', getenv('DB_LOCAL_PORT') ?: DB_PORT);
+define('DB_LOCAL_NAME', getenv('DB_LOCAL_NAME') ?: DB_NAME);
+define('DB_LOCAL_USER', getenv('DB_LOCAL_USER') ?: DB_USER);
+define('DB_LOCAL_PASS', getenv('DB_LOCAL_PASS') ?: DB_PASS);
+define('DB_ONLINE_HOST', getenv('DB_ONLINE_HOST') ?: DB_HOST);
+define('DB_ONLINE_PORT', getenv('DB_ONLINE_PORT') ?: DB_PORT);
+define('DB_ONLINE_NAME', getenv('DB_ONLINE_NAME') ?: DB_NAME);
+define('DB_ONLINE_USER', getenv('DB_ONLINE_USER') ?: DB_USER);
+define('DB_ONLINE_PASS', getenv('DB_ONLINE_PASS') ?: DB_PASS);
+define('DB_MODE', strtolower(getenv('DB_MODE') ?: 'local'));
+define('DB_AUTO_MIGRATE', filter_var(getenv('DB_AUTO_MIGRATE') ?: 'true', FILTER_VALIDATE_BOOLEAN));
 
-// API key that Botora sends in every request (must match demarrer.bat config)
+define('APP_NAME', 'Botora Admin');
+define('APP_URL', getenv('APP_URL') ?: 'http://localhost');
+define('APP_SECRET', getenv('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', getenv('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
 
 // FedaPay — use live keys only through server environment variables.
+define('FEDAPAY_SECRET_KEY', getenv('FEDAPAY_SECRET_KEY') ?: '');
+define('FEDAPAY_PUBLIC_KEY', getenv('FEDAPAY_PUBLIC_KEY') ?: '');
 define('FEDAPAY_WEBHOOK_SECRET', getenv('FEDAPAY_WEBHOOK_SECRET') ?: '');
 define('FEDAPAY_API_URL', rtrim(getenv('FEDAPAY_API_URL') ?: 'https://api.fedapay.com/v1', '/'));
 define('CREDIT_TOKENS_PER_CREDIT', 100000);
 define('CREDIT_VALUE_XOF', 120);
-
-// Session lifetime (seconds)
 define('SESSION_LIFETIME', 3600 * 8);
-
-// Email notifications (optional)
 define('MAIL_FROM', getenv('MAIL_FROM') ?: '');
 define('MAIL_FROM_NAME', 'Botora Admin');
 
-// Fedapay information
-define('FEDAPAY_PUBLIC_KEY', getenv('sk_live_0BBv8DpE_J_vDnw7RTMji51T') ?: '');
-define('FEDAPAY_SECRET_KEY', getenv('wh_live_9kJfHnYvh1asZKSjjFFvoG8o') ?: '');
+// Les anciennes clés codées en dur ont été supprimées : elles ne doivent jamais
+// être stockées dans le dépôt. Fournir les vraies clés uniquement via .env/serveur.

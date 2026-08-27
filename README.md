@@ -22,10 +22,30 @@ mysql -u root -p < sql/schema.sql
 ### 3. Configurer
 Éditez `config.php` ou définissez ces variables d'environnement sur votre serveur :
 ```
+# Compatibilité historique : utilisée si DB_MODE=local
 DB_HOST=localhost
 DB_NAME=botora_admin
 DB_USER=your_db_user
 DB_PASS=your_db_password
+
+# Source active : local, online ou dual
+DB_MODE=local
+DB_AUTO_MIGRATE=true
+
+# Connexion locale (utile en mode local ou dual)
+DB_LOCAL_HOST=localhost
+DB_LOCAL_PORT=3306
+DB_LOCAL_NAME=botora_admin
+DB_LOCAL_USER=your_local_db_user
+DB_LOCAL_PASS=your_local_db_password
+
+# Connexion en ligne (utile en mode online ou dual)
+DB_ONLINE_HOST=your-online-db-host
+DB_ONLINE_PORT=3306
+DB_ONLINE_NAME=botora_admin
+DB_ONLINE_USER=your_online_db_user
+DB_ONLINE_PASS=your_online_db_password
+
 APP_URL=https://admin.votredomaine.com
 APP_SECRET=votre-secret-aleatoire
 BOTORA_API_KEY=votre-cle-api-secrete
@@ -70,6 +90,12 @@ Trois endpoints pour que Botora communique avec le panel :
 | `/api/features.php` | GET | Récupérer les fonctionnalités du plan |
 
 Chaque requête doit inclure le header `X-Api-Key: <BOTORA_API_KEY>`.
+
+## Vérification automatique de la base
+
+À chaque chargement de la page d’accueil, Botora Admin vérifie la connexion active, crée la base si elle est absente, puis applique le schéma SQL de manière idempotente. Les tables existantes et leurs données ne sont pas supprimées. Les pages protégées et les endpoints API réutilisent ensuite la même connexion préparée.
+
+Le mode `local` utilise la base locale, le mode `online` utilise la base en ligne et le mode `dual` ouvre les deux connexions, avec la base locale comme source active historique. Le mode `dual` prépare les deux côtés mais ne réalise pas de synchronisation automatique : une synchronisation de données doit être explicitement conçue avec une règle de priorité, des identifiants stables et une gestion des conflits afin d’éviter les doublons ou les écrasements.
 
 ## Rôles admin
 - **superadmin** : Accès total, gestion des admins

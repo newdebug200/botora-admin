@@ -36,6 +36,24 @@ try {
     $rows = array_map('admin_user_payload', $stmt->fetchAll());
     api_json(['ok'=>true,'users'=>$rows]);
   }
+  if ($resource === 'users' && $method === 'POST') {
+    $name = trim((string)($data['name'] ?? ''));
+    $email = strtolower(trim((string)($data['email'] ?? '')));
+    $password = (string)($data['password'] ?? '');
+    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) api_json(['ok'=>false,'error'=>'Nom, email valide et mot de passe de 8 caractères minimum requis.'],400);
+    $exists = $db->prepare('SELECT id FROM users WHERE email=? LIMIT 1'); $exists->execute([$email]);
+    if ($exists->fetchColumn()) api_json(['ok'=>false,'error'=>'Cet email est déjà utilisé.'],409);
+    $planId = !empty($data['plan_id']) ? (int)$data['plan_id'] : null;
+    $status = in_array(($data['status'] ?? 'active'), ['trial','active','suspended','expired','banned'], true) ? $data['status'] : 'active';
+    $trialDays = max(0, (int)($data['trial_days'] ?? 14));
+    $trialEnd = $trialDays > 0 ? date('Y-m-d', strtotime("+$trialDays days")) : null;
+    $license = generate_license();
+    $hash = password_hash($password, PASSWORD_DEFAULT);
+    $stmt = $db->prepare('INSERT INTO users (name,email,password_hash,company,phone,plan_id,license_key,status,credits_balance,trial_ends_at,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+    $stmt->execute([$name,$email,$hash,trim((string)($data['company'] ?? '')),trim((string)($data['phone'] ?? '')) ?: null,$planId,$license,$status,0,$trialEnd,trim((string)($data['notes'] ?? '')) ?: null]);
+    $stmt = $db->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([(int)$db->lastInsertId()]);
+    api_json(['ok'=>true,'user'=>admin_user_payload($stmt->fetch())],201);
+  }
   if ($resource === 'user' && $method === 'PATCH') {
     $user = payment_user($data); if (!$user) api_json(['ok'=>false,'error'=>'Utilisateur introuvable.'],404);
     $fields=[]; $params=[];

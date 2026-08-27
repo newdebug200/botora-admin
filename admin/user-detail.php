@@ -11,12 +11,30 @@ $user->execute([$id]);
 $user = $user->fetch();
 if (!$user) { http_response_code(404); die('Utilisateur introuvable.'); }
 
-$plans = $db->query('SELECT * FROM plans WHERE is_active=1 ORDER BY price_eur')->fetchAll();
+$plans = $db->query('SELECT * FROM plans WHERE is_active=1 ORDER BY price_xof, price_eur')->fetchAll();
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
-  if ($action === 'add_credits') {
+  if ($action === 'update_identity') {
+    $name = trim((string)($_POST['name'] ?? ''));
+    $email = strtolower(trim((string)($_POST['email'] ?? '')));
+    $company = trim((string)($_POST['company'] ?? '')) ?: null;
+    $phone = trim((string)($_POST['phone'] ?? '')) ?: null;
+    $password = (string)($_POST['password'] ?? '');
+    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+      flash_set('error', 'Nom et email valide requis.');
+    } else {
+      $check = $db->prepare('SELECT id FROM users WHERE email=? AND id<>? LIMIT 1'); $check->execute([$email, $id]);
+      if ($check->fetchColumn()) flash_set('error', 'Cet email est déjà utilisé.');
+      else if ($password !== '' && strlen($password) < 8) flash_set('error', 'Le nouveau mot de passe doit contenir au moins 8 caractères.');
+      else {
+        if ($password !== '') $db->prepare('UPDATE users SET name=?,email=?,company=?,phone=?,password_hash=?,updated_at=NOW() WHERE id=?')->execute([$name,$email,$company,$phone,password_hash($password,PASSWORD_DEFAULT),$id]);
+        else $db->prepare('UPDATE users SET name=?,email=?,company=?,phone=?,updated_at=NOW() WHERE id=?')->execute([$name,$email,$company,$phone,$id]);
+        flash_set('success', 'Informations utilisateur mises à jour.');
+      }
+    }
+  } elseif ($action === 'add_credits') {
     $amount = (int)($_POST['amount'] ?? 0);
     $reason = trim($_POST['reason'] ?? 'Ajout manuel admin');
     if ($amount > 0) {
@@ -88,6 +106,19 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
       <div class="info-row"><span>Inscrit le</span><strong><?= format_datetime($user['created_at']) ?></strong></div>
       <div class="info-row"><span>Mis à jour</span><strong><?= format_datetime($user['updated_at']) ?></strong></div>
     </div>
+  </div>
+
+  <!-- Identity -->
+  <div class="card">
+    <div class="card-header"><h2>Informations et accès</h2></div>
+    <form method="POST" class="form-body">
+      <input type="hidden" name="action" value="update_identity">
+      <div class="form-group"><label>Nom complet</label><input type="text" name="name" class="form-control" value="<?= h($user['name']) ?>" required></div>
+      <div class="form-group"><label>Email de connexion</label><input type="email" name="email" class="form-control" value="<?= h($user['email']) ?>" required></div>
+      <div class="form-row"><div class="form-group"><label>Entreprise</label><input type="text" name="company" class="form-control" value="<?= h($user['company'] ?? '') ?>"></div><div class="form-group"><label>Téléphone</label><input type="text" name="phone" class="form-control" value="<?= h($user['phone'] ?? '') ?>"></div></div>
+      <div class="form-group"><label>Nouveau mot de passe</label><input type="password" name="password" class="form-control" minlength="8" autocomplete="new-password"><small class="text-muted">Laisser vide pour conserver le mot de passe actuel.</small></div>
+      <button type="submit" class="btn btn-primary">Enregistrer les informations</button>
+    </form>
   </div>
 
   <!-- Add credits -->

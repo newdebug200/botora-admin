@@ -72,6 +72,7 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
   }
   foreach ([
     'ALTER TABLE plans ADD COLUMN price_xof DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER price_eur',
+    'ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL AFTER email',
     'UPDATE plans SET price_xof = ROUND(price_eur * 655.957, 2) WHERE price_xof = 0 AND price_eur > 0',
     'ALTER TABLE users MODIFY credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0',
     'ALTER TABLE credit_logs MODIFY amount DECIMAL(20,10) NOT NULL',

@@ -79,7 +79,7 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
     'ALTER TABLE usage_logs MODIFY credits_used DECIMAL(20,10) DEFAULT 0'
   ] as $migration) {
     try { $pdo->exec($migration); } catch (PDOException $e) {
-      if (!preg_match('/unknown column|doesn.t exist|no such table/i', $e->getMessage())) throw $e;
+      if (!preg_match('/unknown column|doesn.t exist|no such table|duplicate column|already exists/i', $e->getMessage())) throw $e;
     }
   }
   $pdo->exec('CREATE TABLE IF NOT EXISTS botora_schema_versions (id TINYINT UNSIGNED PRIMARY KEY, schema_hash CHAR(64) NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)');

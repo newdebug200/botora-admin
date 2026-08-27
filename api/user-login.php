@@ -16,6 +16,3 @@ api_json(['ok'=>true,'user'=>[
   'status'=>$user['status'], 'credits_balance'=>(float)$user['credits_balance'],
   'plan_id'=>$user['plan_id'] ? (int)$user['plan_id'] : null
 ]]);
-?>
-
-La route est interne : elle exige `X-Botora-Service-Key` et ne doit jamais être appelée directement par le navigateur.

@@ -40,7 +40,7 @@ if ($configuredAppUrl === '' || ($isLocalUrl && DB_MODE !== 'local')) $configure
 define('APP_URL', rtrim($configuredAppUrl, '/'));
 define('APP_SECRET', getenv('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', getenv('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
-define('BOTORA_SERVICE_KEY', getenv('BOTORA_SERVICE_KEY') ?: API_KEY);
+define('BOTORA_SERVICE_KEY', getenv('BOTORA_SERVICE_KEY') ?: 'QmZxLpVrTaNkYwHsDcBjUfGeR');
 
 // FedaPay — use live keys only through server environment variables.
 define('FEDAPAY_SECRET_KEY', getenv('sk_live_0BBv8DpE_J_vDnw7RTMji51T') ?: '');

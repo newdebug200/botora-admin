@@ -70,6 +70,16 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
       if (!preg_match('/already exists|duplicate key name|duplicate entry/i', $e->getMessage())) throw $e;
     }
   }
+  foreach ([
+    'ALTER TABLE users MODIFY credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0',
+    'ALTER TABLE credit_logs MODIFY amount DECIMAL(20,10) NOT NULL',
+    'ALTER TABLE credit_logs MODIFY balance_after DECIMAL(20,10) NOT NULL',
+    'ALTER TABLE usage_logs MODIFY credits_used DECIMAL(20,10) DEFAULT 0'
+  ] as $migration) {
+    try { $pdo->exec($migration); } catch (PDOException $e) {
+      if (!preg_match('/unknown column|doesn.t exist|no such table/i', $e->getMessage())) throw $e;
+    }
+  }
   $pdo->exec('CREATE TABLE IF NOT EXISTS botora_schema_versions (id TINYINT UNSIGNED PRIMARY KEY, schema_hash CHAR(64) NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)');
   $hash = hash_file('sha256', $schemaFile);
   $stmt = $pdo->prepare('INSERT INTO botora_schema_versions (id, schema_hash) VALUES (1, ?) ON DUPLICATE KEY UPDATE schema_hash = VALUES(schema_hash)');

@@ -31,6 +31,7 @@ define('BOTORA_ADMIN_NAME', getenv('BOTORA_ADMIN_NAME') ?: 'Botora Superadmin');
 
 define('APP_NAME', 'Botora Admin');
 define('BOTORA_API_URL', rtrim(getenv('BOTORA_API_URL') ?: 'https://botora.bluelifetech.site', '/'));
+define('FEDAPAY_CALLBACK_URL', getenv('FEDAPAY_CALLBACK_URL') ?: BOTORA_API_URL . '/?payment=return');
 // L’URL publique est prioritaire. Une valeur localhost n’est acceptée que si
 // l’installation locale est explicitement choisie par DB_MODE=local.
 $configuredAppUrl = trim((string)(getenv('APP_URL') ?: ''));
@@ -39,6 +40,7 @@ if ($configuredAppUrl === '' || ($isLocalUrl && DB_MODE !== 'local')) $configure
 define('APP_URL', rtrim($configuredAppUrl, '/'));
 define('APP_SECRET', getenv('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', getenv('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
+define('BOTORA_SERVICE_KEY', getenv('BOTORA_SERVICE_KEY') ?: API_KEY);
 
 // FedaPay — use live keys only through server environment variables.
 define('FEDAPAY_SECRET_KEY', getenv('FEDAPAY_SECRET_KEY') ?: '');

@@ -91,6 +91,25 @@ Trois endpoints pour que Botora communique avec le panel :
 
 Chaque requête doit inclure le header `X-Api-Key: <BOTORA_API_KEY>`.
 
+## Paiements FedaPay centralisés
+
+`botora-admin` est le seul service qui communique avec FedaPay. Les endpoints interservices utilisent le header privé `X-Botora-Service-Key` :
+
+| Endpoint | Méthode | Rôle |
+|---|---|---|
+| `/api/payment-create.php` | POST | Créer une transaction et retourner le lien FedaPay |
+| `/api/payment-verify.php` | POST | Reconsulter une transaction et créditer si elle est approuvée |
+| `/api/credits.php` | POST | Retourner le solde et l’historique d’un client |
+| `/api/webhook/fedapay.php` | POST public | Recevoir les événements FedaPay et confirmer la transaction |
+
+L’URL à enregistrer dans FedaPay est :
+
+```text
+https://botora.bluelifetech.site/api/webhook/fedapay.php
+```
+
+Définissez une même clé privée sur les deux serveurs avec `BOTORA_SERVICE_KEY` dans `botora-admin` et `BOTORA_ADMIN_SERVICE_KEY` dans `whatsapp-grok-platform`. Les clés secrètes FedaPay restent uniquement sur le serveur `botora-admin`.
+
 ## Vérification automatique de la base
 
 À chaque chargement de la page d’accueil, Botora Admin vérifie la connexion active, crée la base si elle est absente, puis applique le schéma SQL de manière idempotente. Les tables existantes et leurs données ne sont pas supprimées. Les pages protégées et les endpoints API réutilisent ensuite la même connexion préparée.

@@ -47,7 +47,7 @@ CREATE TABLE users (
   plan_id INT UNSIGNED NULL,
   license_key CHAR(36) NOT NULL UNIQUE,
   status ENUM('trial','active','suspended','expired','banned') DEFAULT 'trial',
-  credits_balance INT NOT NULL DEFAULT 0,
+  credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0,
   trial_ends_at DATE NULL,
   activated_at DATETIME NULL,
   notes TEXT NULL,
@@ -72,11 +72,11 @@ CREATE TABLE activations (
 CREATE TABLE credit_logs (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
-  amount INT NOT NULL,
+  amount DECIMAL(20,10) NOT NULL,
   type ENUM('add','consume','reset','expire') NOT NULL,
   reason VARCHAR(255) NULL,
   admin_id INT UNSIGNED NULL,
-  balance_after INT NOT NULL,
+  balance_after DECIMAL(20,10) NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL
@@ -87,7 +87,7 @@ CREATE TABLE usage_logs (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
   event_type VARCHAR(60) NOT NULL,
-  credits_used INT DEFAULT 0,
+  credits_used DECIMAL(20,10) DEFAULT 0,
   meta JSON NULL,
   logged_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -98,3 +98,32 @@ CREATE INDEX idx_users_license ON users(license_key);
 CREATE INDEX idx_users_status ON users(status);
 CREATE INDEX idx_credit_logs_user ON credit_logs(user_id, created_at);
 CREATE INDEX idx_usage_logs_user ON usage_logs(user_id, logged_at);
+
+
+-- FedaPay payments initiated by whatsapp-grok-platform
+CREATE TABLE payment_transactions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  external_id VARCHAR(100) NULL UNIQUE,
+  amount_xof DECIMAL(14,2) NOT NULL,
+  credits DECIMAL(20,10) NOT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'pending',
+  description VARCHAR(255) NULL,
+  metadata JSON NULL,
+  approved_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_payment_user (user_id, created_at),
+  INDEX idx_payment_status (status)
+);
+
+CREATE TABLE payment_webhook_events (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  payment_id INT UNSIGNED NULL,
+  event_id VARCHAR(191) NOT NULL UNIQUE,
+  event_type VARCHAR(80) NOT NULL,
+  payload JSON NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (payment_id) REFERENCES payment_transactions(id) ON DELETE SET NULL
+);

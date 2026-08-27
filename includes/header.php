@@ -48,6 +48,10 @@ $expiring_soon = (int) db()->query("SELECT COUNT(*) FROM users WHERE status='tri
       </a></li>
       <?php if (is_superadmin()): ?>
       <li class="menu-section">Superadmin</li>
+      <li><a href="<?= APP_URL ?>/admin/credits.php" class="<?= ($activePage??'')==='credits'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 16h-2v-2h2v2Zm2.07-7.25-.9.92C13.45 12.4 13 13 13 14h-2v-.5c0-.8.45-1.55 1.17-2.28l1.24-1.26A1.5 1.5 0 0 0 12.35 7.4c-.76 0-1.4.47-1.66 1.15l-1.85-.77A3.5 3.5 0 0 1 12.35 5a3.5 3.5 0 0 1 2.72 5.75Z"/></svg>
+        Crédits
+      </a></li>
       <li><a href="<?= APP_URL ?>/admin/features.php" class="<?= ($activePage??'')==='features'?'active':'' ?>">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65-2-3.46-2.49 1a7.06 7.06 0 0 0-1.69-.98L15 3h-4l-.36 2.93c-.6.25-1.16.58-1.69.98l-2.49-1-2 3.46 2.11 1.65a7.8 7.8 0 0 0 0 1.96l-2.11 1.65 2 3.46 2.49-1c.53.4 1.09.73 1.69.98L11 21h4l.36-2.93c.6-.25 1.16-.58 1.69-.98l2.49 1 2-3.46-2.11-1.65ZM13 15.5A3.5 3.5 0 1 1 13 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
         Fonctionnalités

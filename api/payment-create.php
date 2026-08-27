@@ -25,9 +25,11 @@ try {
   if ($providerId === '') throw new RuntimeException('Identifiant FedaPay absent.');
   $tokenData = fedapay_request('POST', '/transactions/' . rawurlencode($providerId) . '/token', []);
   $token = (string)($tokenData['token'] ?? $tokenData['payment_token'] ?? '');
-  if ($token === '') throw new RuntimeException('Lien FedaPay absent.');
-  $db->prepare('UPDATE payment_transactions SET external_id=?, metadata=? WHERE id=?')->execute([$providerId, json_encode(['merchant_reference' => $merchantReference, 'provider' => $created], JSON_UNESCAPED_UNICODE), $paymentId]);
-  api_json(['ok' => true, 'paymentId' => $paymentId, 'transactionId' => $providerId, 'paymentUrl' => 'https://checkout.fedapay.com/' . $token, 'amount' => $amount, 'credits' => $credits]);
+  $paymentUrl = (string)($tokenData['url'] ?? $tokenData['payment_url'] ?? '');
+  if ($paymentUrl === '' && $token !== '') $paymentUrl = 'https://checkout.fedapay.com/' . rawurlencode($token);
+  if ($paymentUrl === '') throw new RuntimeException('Lien FedaPay absent.');
+  $db->prepare('UPDATE payment_transactions SET external_id=?, metadata=? WHERE id=?')->execute([$providerId, json_encode(['merchant_reference' => $merchantReference, 'provider' => $created, 'token_response' => $tokenData], JSON_UNESCAPED_UNICODE), $paymentId]);
+  api_json(['ok' => true, 'paymentId' => $paymentId, 'transactionId' => $providerId, 'paymentUrl' => $paymentUrl, 'amount' => $amount, 'credits' => $credits]);
 } catch (Throwable $e) {
   if (!empty($paymentId)) $db->prepare('UPDATE payment_transactions SET status=?, metadata=? WHERE id=?')->execute(['creation_failed', json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE), $paymentId]);
   error_log('[Botora Admin] FedaPay create: ' . $e->getMessage());

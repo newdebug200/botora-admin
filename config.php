@@ -25,6 +25,7 @@ define('DB_AUTO_MIGRATE', filter_var(getenv('DB_AUTO_MIGRATE') ?: 'true', FILTER
 
 define('APP_NAME', 'Botora Admin');
 define('APP_URL', getenv('APP_URL') ?: 'http://localhost');
+define('BOTORA_API_URL', rtrim(getenv('BOTORA_API_URL') ?: 'https://botora.bluelifetech.site', '/'));
 define('APP_SECRET', getenv('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', getenv('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
 

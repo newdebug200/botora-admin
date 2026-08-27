@@ -94,9 +94,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="card-header"><h2>Configuration API</h2></div>
   <div class="form-body">
     <div class="info-row"><span>Clé API Botora</span><code><?= h(API_KEY) ?></code></div>
-    <div class="info-row"><span>Endpoint validate</span><code><?= h(APP_URL) ?>/api/validate.php</code></div>
-    <div class="info-row"><span>Endpoint consume</span><code><?= h(APP_URL) ?>/api/consume.php</code></div>
-    <div class="info-row"><span>Endpoint features</span><code><?= h(APP_URL) ?>/api/features.php</code></div>
+    <div class="info-row"><span>Endpoint validate</span><code><?= h(BOTORA_API_URL) ?>/api/validate.php</code></div>
+    <div class="info-row"><span>Endpoint consume</span><code><?= h(BOTORA_API_URL) ?>/api/consume.php</code></div>
+    <div class="info-row"><span>Endpoint features</span><code><?= h(BOTORA_API_URL) ?>/api/features.php</code></div>
     <p class="text-muted" style="margin-top:12px;font-size:.85rem">Configurez ces valeurs dans le fichier <code>config.php</code> sur votre serveur ou via variables d'environnement.</p>
   </div>
 </div>

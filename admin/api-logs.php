@@ -54,9 +54,9 @@ $logs = array_slice($latest, ($page - 1) * $perPage, $perPage);
           <td><strong><?= h($log['method']) ?></strong><br><code><?= h($log['route']) ?></code></td>
           <td><span class="badge <?= (int)$log['status_code'] < 400 ? 'badge-success' : 'badge-danger' ?>"><?= (int)$log['status_code'] ?></span></td>
           <td><?= (int)$log['response_ms'] ?> ms</td>
-          <td><button type="button" class="btn btn-sm btn-outline api-log-modal-trigger" data-modal-title="Payload" data-modal-content="<?= h((string)($log['payload'] ?? '')) ?>">Voir</button></td>
-          <td><button type="button" class="btn btn-sm btn-outline api-log-modal-trigger" data-modal-title="Réponse" data-modal-content="<?= h((string)($log['response'] ?? '')) ?>">Voir</button></td>
-          <td><?php if (!empty($log['error_message'])): ?><button type="button" class="btn btn-sm btn-danger api-log-modal-trigger" data-modal-title="Erreur" data-modal-content="<?= h((string)$log['error_message']) ?>">Voir</button><?php else: ?><span class="text-muted">—</span><?php endif; ?></td>
+          <td><button type="button" class="btn btn-sm btn-outline api-log-modal-trigger" data-modal-title="Payload" data-modal-content-id="api-log-payload-<?= (int)$log['id'] ?>">Voir</button><template id="api-log-payload-<?= (int)$log['id'] ?>"><pre><?= h((string)($log['payload'] ?? '')) ?></pre></template></td>
+          <td><button type="button" class="btn btn-sm btn-outline api-log-modal-trigger" data-modal-title="Réponse" data-modal-content-id="api-log-response-<?= (int)$log['id'] ?>">Voir</button><template id="api-log-response-<?= (int)$log['id'] ?>"><pre><?= h((string)($log['response'] ?? '')) ?></pre></template></td>
+          <td><?php if (!empty($log['error_message'])): ?><button type="button" class="btn btn-sm btn-danger api-log-modal-trigger" data-modal-title="Erreur" data-modal-content-id="api-log-error-<?= (int)$log['id'] ?>">Voir</button><template id="api-log-error-<?= (int)$log['id'] ?>"><pre><?= h((string)$log['error_message']) ?></pre></template><?php else: ?><span class="text-muted">—</span><?php endif; ?></td>
           <td><small>IP: <?= h((string)($log['ip_address'] ?? '—')) ?><br><?= h((string)($log['user_agent'] ?? '—')) ?></small></td>
         </tr>
       <?php endforeach; ?>
@@ -92,7 +92,8 @@ $logs = array_slice($latest, ($page - 1) * $perPage, $perPage);
 document.querySelectorAll('.api-log-modal-trigger').forEach(function (button) {
   button.addEventListener('click', function () {
     document.getElementById('api-log-modal-title').textContent = button.dataset.modalTitle || 'Détail';
-    document.getElementById('api-log-modal-content').textContent = button.dataset.modalContent || 'Aucun contenu.';
+    const template = document.getElementById(button.dataset.modalContentId);
+    document.getElementById('api-log-modal-content').textContent = template ? template.content.textContent : 'Aucun contenu.';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('api-log-modal')).show();
   });
 });

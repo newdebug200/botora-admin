@@ -119,19 +119,17 @@ function payment_credit_approved(int $paymentId, array $transaction, string $eve
     $stmt->execute([$paymentId]);
     $payment = $stmt->fetch();
     if (!$payment) throw new RuntimeException('Paiement introuvable.');
+    if ($payment['status'] === 'approved') {
+      $db->commit();
+      return ['status' => 'approved', 'already_processed' => true, 'credits' => (float)$payment['credits']];
+    }
     try {
       $db->prepare('INSERT INTO payment_webhook_events (payment_id,event_id,event_type,payload) VALUES (?,?,?,?)')
         ->execute([$paymentId, $eventId, $eventType, $rawPayload]);
     } catch (PDOException $e) {
       if ((string)$e->getCode() !== '23000') throw $e;
-      $db->commit();
-      return ['status' => $payment['status'], 'already_processed' => true, 'credits' => (float)$payment['credits']];
     }
     $status = strtolower((string)($transaction['status'] ?? 'pending'));
-    if ($payment['status'] === 'approved') {
-      $db->commit();
-      return ['status' => 'approved', 'already_processed' => true, 'credits' => (float)$payment['credits']];
-    }
     if ($status === 'approved') {
       $db->prepare('UPDATE payment_transactions SET status=?, approved_at=NOW(), updated_at=NOW() WHERE id=?')
         ->execute([$status, $paymentId]);

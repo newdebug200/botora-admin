@@ -22,7 +22,9 @@ $payload = $event['object'] ?? $event['data'] ?? $event['transaction'] ?? $event
 if (isset($payload['transaction']) && is_array($payload['transaction'])) $payload = $payload['transaction'];
 $eventType = strtolower((string)($event['name'] ?? $event['type'] ?? $event['event'] ?? ''));
 $externalId = (string)($payload['id'] ?? '');
-$eventId = (string)($event['id'] ?? ($eventType . ':' . $externalId . ':' . ($payload['updated_at'] ?? $payload['status'] ?? hash('sha256', $raw))));
+$eventStatus = strtolower((string)($payload['status'] ?? ''));
+$eventVersion = (string)($payload['updated_at'] ?? $payload['created_at'] ?? '');
+$eventId = $eventType . ':' . $externalId . ':' . ($eventStatus ?: 'unknown') . ':' . ($eventVersion ?: hash('sha256', $raw));
 if ($externalId === '') api_json(['ok' => true, 'received' => true]);
 try {
   // Le payload webhook n’est jamais considéré comme preuve suffisante :

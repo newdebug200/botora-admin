@@ -43,6 +43,10 @@ $expiring_soon = (int) db()->query("SELECT COUNT(*) FROM users WHERE status='tri
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 7h18v10H3V7zm2 2v6h14V9H5zm2 2h4v2H7v-2zm6 0h4v2h-4v-2z"/></svg>
         Transactions
       </a></li>
+      <li><a href="<?= APP_URL ?>/admin/api-keys.php" class="<?= ($activePage??'')==='api-keys'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M7 14a5 5 0 1 1 3.9-8.13l8.23 8.23-2.12 2.12-1.41-1.41-1.42 1.42-1.41-1.42-1.42 1.42-1.41-1.41A5 5 0 0 1 7 14zm0-3a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+        Clés API
+      </a></li>
       <li><a href="<?= APP_URL ?>/admin/api-logs.php" class="<?= ($activePage??'')==='api-logs'?'active':'' ?>">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M4 3h16v18H4V3zm2 2v14h12V5H6zm2 3h8v2H8V8zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/></svg>
         Logs API

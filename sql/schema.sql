@@ -161,6 +161,21 @@ CREATE TABLE subscription_webhook_events (
   FOREIGN KEY (subscription_payment_id) REFERENCES subscription_payments(id) ON DELETE SET NULL
 );
 
+CREATE TABLE api_key_history (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  account_email VARCHAR(191) NOT NULL,
+  platform_key_uid VARCHAR(100) NOT NULL,
+  key_name VARCHAR(80) NOT NULL,
+  key_prefix VARCHAR(32) NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'active',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_used_at DATETIME NULL,
+  revoked_at DATETIME NULL,
+  UNIQUE KEY uq_api_key_history_uid (platform_key_uid),
+  INDEX idx_api_key_history_account (account_email, created_at),
+  INDEX idx_api_key_history_status (status)
+);
+
 CREATE TABLE payment_webhook_events (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   payment_id INT UNSIGNED NULL,

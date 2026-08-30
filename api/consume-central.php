@@ -13,4 +13,4 @@ try {
   $db->prepare('INSERT INTO credit_logs (user_id,amount,type,reason,balance_after) VALUES (?,?,?,?,?)')->execute([$user['id'],-$credits,'consume',$data['event_type']??'ai.usage',$new]);
   $db->prepare('INSERT INTO usage_logs (user_id,event_type,credits_used,meta) VALUES (?,?,?,?)')->execute([$user['id'],$data['event_type']??'ai.usage',$credits,json_encode(['tokens_used'=>$tokens,'payload'=>$data['payload']??[]],JSON_UNESCAPED_UNICODE)]);
   $db->commit(); api_json(['ok'=>true,'credits_balance'=>$new,'consumed'=>$credits,'tokens_used'=>$tokens]);
-} catch(Throwable $e) { if($db->inTransaction())$db->rollBack(); error_log('[Botora Admin] consume: '.$e->getMessage()); api_json(['ok'=>false,'error'=>'Erreur interne de consommation.'],500); }
+} catch(Throwable $e) { if($db->inTransaction())$db->rollBack(); error_log('[Botora Admin] consume: '.$e->getMessage()); api_log_set_error($e->getMessage()); api_json(['ok'=>false,'error'=>'Erreur interne de consommation.'],500); }

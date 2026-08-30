@@ -110,5 +110,6 @@ try {
 } catch (Throwable $e) {
   if ($db->inTransaction()) $db->rollBack();
   error_log('[Botora Admin] admin API: '.$e->getMessage());
+  api_log_set_error($e->getMessage());
   api_json(['ok'=>false,'error'=>'Erreur interne de l’API admin.'],500);
 }

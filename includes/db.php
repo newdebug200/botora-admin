@@ -78,6 +78,7 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
     'ALTER TABLE credit_logs MODIFY amount DECIMAL(20,10) NOT NULL',
     'ALTER TABLE credit_logs MODIFY balance_after DECIMAL(20,10) NOT NULL',
     'ALTER TABLE usage_logs MODIFY credits_used DECIMAL(20,10) DEFAULT 0'
+    , 'ALTER TABLE api_logs ADD COLUMN error_message LONGTEXT NULL AFTER response'
   ] as $migration) {
     try { $pdo->exec($migration); } catch (PDOException $e) {
       if (!preg_match('/unknown column|doesn.t exist|no such table|duplicate column|already exists/i', $e->getMessage())) throw $e;

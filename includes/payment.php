@@ -6,6 +6,7 @@ require_once __DIR__ . '/db.php';
 // Node.js, tout en conservant le détail uniquement dans le journal PHP.
 set_exception_handler(function (Throwable $e): void {
   error_log('[Botora API] ' . $e->getMessage());
+  api_log_set_error($e->getMessage());
   $message = defined('APP_DEBUG') && APP_DEBUG ? $e->getMessage() : 'Erreur interne de configuration du serveur.';
   api_json(['ok' => false, 'error' => $message], 500);
 });

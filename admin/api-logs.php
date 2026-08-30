@@ -37,6 +37,7 @@ $logs = array_slice($latest, ($page - 1) * $perPage, $perPage);
           <th>Durée</th>
           <th>Payload</th>
           <th>Réponse</th>
+          <th>Erreur</th>
           <th>Contexte</th>
         </tr>
       </thead>
@@ -53,12 +54,13 @@ $logs = array_slice($latest, ($page - 1) * $perPage, $perPage);
           <td><strong><?= h($log['method']) ?></strong><br><code><?= h($log['route']) ?></code></td>
           <td><span class="badge <?= (int)$log['status_code'] < 400 ? 'badge-success' : 'badge-danger' ?>"><?= (int)$log['status_code'] ?></span></td>
           <td><?= (int)$log['response_ms'] ?> ms</td>
-          <td><details><summary>Voir</summary><pre class="api-log-data"><?= h((string)($log['payload'] ?? '')) ?></pre></details></td>
-          <td><details><summary>Voir</summary><pre class="api-log-data"><?= h((string)($log['response'] ?? '')) ?></pre></details></td>
+          <td><button type="button" class="btn btn-sm btn-outline api-log-modal-trigger" data-modal-title="Payload" data-modal-content="<?= h((string)($log['payload'] ?? '')) ?>">Voir</button></td>
+          <td><button type="button" class="btn btn-sm btn-outline api-log-modal-trigger" data-modal-title="Réponse" data-modal-content="<?= h((string)($log['response'] ?? '')) ?>">Voir</button></td>
+          <td><?php if (!empty($log['error_message'])): ?><button type="button" class="btn btn-sm btn-danger api-log-modal-trigger" data-modal-title="Erreur" data-modal-content="<?= h((string)$log['error_message']) ?>">Voir</button><?php else: ?><span class="text-muted">—</span><?php endif; ?></td>
           <td><small>IP: <?= h((string)($log['ip_address'] ?? '—')) ?><br><?= h((string)($log['user_agent'] ?? '—')) ?></small></td>
         </tr>
       <?php endforeach; ?>
-      <?php if (!$logs): ?><tr><td colspan="9" class="text-center text-muted py-4">Aucun appel API enregistré.</td></tr><?php endif; ?>
+      <?php if (!$logs): ?><tr><td colspan="10" class="text-center text-muted py-4">Aucun appel API enregistré.</td></tr><?php endif; ?>
       </tbody>
     </table>
   </div>
@@ -73,5 +75,27 @@ $logs = array_slice($latest, ($page - 1) * $perPage, $perPage);
   <?php if ($page < $totalPages): ?><a class="btn btn-sm btn-outline" href="?page=<?= $page + 1 ?>">Suivant</a><?php endif; ?>
 </nav>
 <?php endif; ?>
+
+<div class="modal fade" id="api-log-modal" tabindex="-1" aria-labelledby="api-log-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="api-log-modal-title">Détail</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body"><pre id="api-log-modal-content" class="api-log-modal-content"></pre></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.api-log-modal-trigger').forEach(function (button) {
+  button.addEventListener('click', function () {
+    document.getElementById('api-log-modal-title').textContent = button.dataset.modalTitle || 'Détail';
+    document.getElementById('api-log-modal-content').textContent = button.dataset.modalContent || 'Aucun contenu.';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('api-log-modal')).show();
+  });
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

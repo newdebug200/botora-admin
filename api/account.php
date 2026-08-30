@@ -18,5 +18,6 @@ try {
   ]]);
 } catch (Throwable $e) {
   error_log('[Botora Admin] account read: '.$e->getMessage());
+  api_log_set_error($e->getMessage());
   api_json(['ok'=>false,'error'=>'Impossible de récupérer le compte central.'], 500);
 }

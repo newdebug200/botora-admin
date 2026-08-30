@@ -140,6 +140,7 @@ CREATE TABLE api_logs (
   user_agent VARCHAR(500) NULL,
   payload LONGTEXT NULL,
   response LONGTEXT NULL,
+  error_message LONGTEXT NULL,
   status_code SMALLINT UNSIGNED NOT NULL,
   response_ms INT UNSIGNED NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

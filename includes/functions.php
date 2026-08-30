@@ -6,6 +6,7 @@ $GLOBALS['_botora_api_log'] = [
   'request_data' => null,
   'payload' => null,
   'user_id' => null,
+  'error' => null,
 ];
 
 function api_log_sanitize($value) {
@@ -33,12 +34,17 @@ function api_log_set_user(?int $userId): void {
   $GLOBALS['_botora_api_log']['user_id'] = $userId ?: null;
 }
 
+function api_log_set_error(?string $error): void {
+  $GLOBALS['_botora_api_log']['error'] = $error ?: null;
+}
+
 function api_log_write(array $response, int $statusCode): void {
   try {
     $db = db();
     $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
     $route = (string)(parse_url($requestUri, PHP_URL_PATH) ?: ($_SERVER['SCRIPT_NAME'] ?? ''));
-    $stmt = $db->prepare('INSERT INTO api_logs (user_id,method,route,ip_address,user_agent,payload,response,status_code,response_ms) VALUES (?,?,?,?,?,?,?,?,?)');
+    $error = $GLOBALS['_botora_api_log']['error'] ?: (($statusCode >= 400 && isset($response['error'])) ? (string)$response['error'] : null);
+    $stmt = $db->prepare('INSERT INTO api_logs (user_id,method,route,ip_address,user_agent,payload,response,error_message,status_code,response_ms) VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
       $GLOBALS['_botora_api_log']['user_id'],
       (string)($_SERVER['REQUEST_METHOD'] ?? 'GET'),
@@ -47,6 +53,7 @@ function api_log_write(array $response, int $statusCode): void {
       substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 500) ?: null,
       json_encode($GLOBALS['_botora_api_log']['payload'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
       json_encode(api_log_sanitize($response), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+      $error,
       $statusCode,
       (int)round((microtime(true) - $GLOBALS['_botora_api_log']['started_at']) * 1000),
     ]);
@@ -140,6 +147,7 @@ function add_credits(int $user_id, int $amount, string $reason, ?int $admin_id =
 }
 
 function api_json(array $data, int $code = 200): void {
+  if ($code >= 400 && isset($data['error'])) api_log_set_error((string)$data['error']);
   api_log_write($data, $code);
   http_response_code($code);
   header('Content-Type: application/json; charset=utf-8');

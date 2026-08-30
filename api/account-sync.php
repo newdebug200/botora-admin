@@ -19,7 +19,19 @@ if ($user) {
   }
   $stmt = $db->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([$user['id']]); $user = $stmt->fetch();
 } else {
-  $db->prepare('INSERT INTO users (name,email,password_hash,phone,license_key,status) VALUES (?,?,?,?,?,?)')->execute([$name,$email,($passwordHash !== '' && preg_match('/^\$2[ayb]\$\d{2}\$/', $passwordHash)) ? $passwordHash : null,$data['phone'] ?? null,generate_license(),'active']);
+  $now = botora_server_now($db);
+  $trialStart = $now->format('Y-m-d H:i:s');
+  $trialEnd = $now->modify('+14 days')->format('Y-m-d H:i:s');
+  $freePlanId = $db->query("SELECT id FROM plans WHERE slug='free' AND is_active=1 LIMIT 1")->fetchColumn() ?: null;
+  $db->prepare('INSERT INTO users (name,email,password_hash,phone,plan_id,license_key,status,credits_balance,trial_started_at,trial_ends_at,trial_used) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+    ->execute([$name, $email, ($passwordHash !== '' && preg_match('/^\$2[ayb]\$\d{2}\$/', $passwordHash)) ? $passwordHash : null, $data['phone'] ?? null, $freePlanId, generate_license(), 'trial', 0, $trialStart, $trialEnd, 1]);
   $stmt = $db->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([(int)$db->lastInsertId()]); $user = $stmt->fetch();
 }
-api_json(['ok'=>true,'user'=>['id'=>(int)$user['id'],'email'=>$user['email'],'name'=>$user['name'],'license_key'=>$user['license_key'],'status'=>$user['status'],'credits_balance'=>(float)$user['credits_balance'],'password_hash'=>$user['password_hash'] ?? null]]);
+$access = botora_access($db, $user);
+api_json(['ok'=>true,'user'=>[
+  'id'=>(int)$user['id'], 'email'=>$user['email'], 'name'=>$user['name'], 'license_key'=>$user['license_key'],
+  'status'=>$user['status'], 'credits_balance'=>(float)$user['credits_balance'], 'password_hash'=>$user['password_hash'] ?? null,
+  'trial_started_at'=>$user['trial_started_at'] ?? null, 'trial_ends_at'=>$user['trial_ends_at'] ?? null,
+  'trial_used'=>(bool)($user['trial_used'] ?? true), 'subscription_started_at'=>$user['subscription_started_at'] ?? null,
+  'subscription_ends_at'=>$user['subscription_ends_at'] ?? null, ...$access
+]]);

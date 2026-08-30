@@ -4,10 +4,21 @@ require_once __DIR__ . '/../includes/header.php';
 require_superadmin();
 
 $db = db();
+$subscriptionConfig = $db->query('SELECT price_xof,duration_days,is_active FROM subscription_config WHERE id=1 LIMIT 1')->fetch() ?: ['price_xof'=>0,'duration_days'=>365,'is_active'=>0];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
-  if ($action === 'change_password') {
+  if ($action === 'update_subscription') {
+    $price = (float)($_POST['subscription_price_xof'] ?? 0);
+    $duration = 365;
+    $active = isset($_POST['subscription_active']) ? 1 : 0;
+    if (!is_finite($price) || $price < 0) {
+      flash_set('danger', 'Prix ou durée d’abonnement invalide.');
+    } else {
+      $db->prepare('INSERT INTO subscription_config (id,price_xof,duration_days,is_active) VALUES (1,?,?,?) ON DUPLICATE KEY UPDATE price_xof=VALUES(price_xof),duration_days=VALUES(duration_days),is_active=VALUES(is_active)')->execute([$price,$duration,$active]);
+      flash_set('success', 'Configuration de l’abonnement annuel enregistrée.');
+    }
+  } elseif ($action === 'change_password') {
     $currentPassword = (string)($_POST['current_password'] ?? '');
     $newPassword = (string)($_POST['new_password'] ?? '');
     $confirmPassword = (string)($_POST['confirm_password'] ?? '');
@@ -43,6 +54,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </form>
     </div>
   </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-header"><h2>Abonnement annuel</h2></div>
+  <form method="POST" class="form-body">
+    <input type="hidden" name="action" value="update_subscription">
+    <p class="text-muted">Le prix est facturé en francs CFA. La durée est calculée côté serveur et le renouvellement ne recrée jamais une période d’essai.</p>
+    <div class="form-row">
+      <div class="form-group"><label for="subscription-price">Prix annuel (XOF)</label><input id="subscription-price" type="number" name="subscription_price_xof" class="form-control" min="0" step="1" required value="<?= h((string)(int)$subscriptionConfig['price_xof']) ?>"></div>
+      <div class="form-group"><label>Durée</label><input type="text" class="form-control" value="365 jours (1 an)" readonly></div>
+    </div>
+    <label class="checkbox-label"><input type="checkbox" name="subscription_active" <?= !empty($subscriptionConfig['is_active']) ? 'checked' : '' ?>> Offre disponible pour les utilisateurs</label>
+    <button type="submit" class="btn btn-primary">Enregistrer l’offre</button>
+  </form>
 </div>
 
 <div class="card" style="margin-top:16px">

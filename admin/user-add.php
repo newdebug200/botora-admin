@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $plan_id = (int)($_POST['plan_id'] ?? 0);
   $password = (string)($_POST['password'] ?? '');
   $credits = 0;
-  $trial   = (int)($_POST['trial_days'] ?? 14);
+  $trial   = 14;
   $notes   = trim($_POST['notes'] ?? '');
 
   if (!$name) $errors[] = 'Le nom est requis.';
@@ -25,9 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   if (empty($errors)) {
     $license = generate_license();
-    $trial_end = date('Y-m-d', strtotime("+{$trial} days"));
-    $db->prepare('INSERT INTO users (name, email, password_hash, plan_id, license_key, credits_balance, trial_ends_at, status, notes) VALUES (?,?,?,?,?,?,?,?,?)')
-       ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $plan_id ?: null, $license, 0, $trial_end, 'trial', $notes]);
+    $now = botora_server_now($db);
+    $trial_start = $now->format('Y-m-d H:i:s');
+    $trial_end = $now->modify('+14 days')->format('Y-m-d H:i:s');
+    $db->prepare('INSERT INTO users (name, email, password_hash, plan_id, license_key, credits_balance, trial_started_at, trial_ends_at, trial_used, status, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+       ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $plan_id ?: null, $license, 0, $trial_start, $trial_end, 1, 'trial', $notes]);
     $user_id = (int)$db->lastInsertId();
     if ($credits > 0) {
       add_credits($user_id, $credits, 'Attribution initiale', $_SESSION['admin_id']);
@@ -80,8 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <small class="text-muted">Tout nouvel utilisateur commence à 0 crédit.</small>
       </div>
       <div class="form-group">
-        <label>Jours d'essai</label>
-        <input type="number" name="trial_days" class="form-control" min="1" max="365" value="<?= (int)($_POST['trial_days']??14) ?>">
+        <label>Essai gratuit</label>
+        <input type="text" class="form-control" value="14 jours (unique)" readonly>
+        <small class="text-muted">L’essai est accordé une seule fois et calculé avec l’heure du serveur.</small>
       </div>
     </div>
     <div class="form-group">

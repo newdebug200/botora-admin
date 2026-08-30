@@ -75,6 +75,13 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
     'ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL AFTER email',
     'UPDATE plans SET price_xof = ROUND(price_eur * 655.957, 2) WHERE price_xof = 0 AND price_eur > 0',
     'ALTER TABLE users MODIFY credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0',
+    'ALTER TABLE users ADD COLUMN trial_started_at DATETIME NULL AFTER credits_balance',
+    'ALTER TABLE users MODIFY trial_ends_at DATETIME NULL',
+    'ALTER TABLE users ADD COLUMN trial_used TINYINT(1) NOT NULL DEFAULT 1 AFTER trial_ends_at',
+    'ALTER TABLE users ADD COLUMN subscription_started_at DATETIME NULL AFTER trial_used',
+    'ALTER TABLE users ADD COLUMN subscription_ends_at DATETIME NULL AFTER subscription_started_at',
+    'UPDATE users SET trial_started_at = COALESCE(trial_started_at, created_at), trial_ends_at = COALESCE(trial_ends_at, DATE_ADD(created_at, INTERVAL 14 DAY)), trial_used = 1 WHERE trial_started_at IS NULL OR trial_ends_at IS NULL',
+    "UPDATE users SET plan_id = (SELECT id FROM plans WHERE slug='free' AND is_active=1 LIMIT 1) WHERE plan_id IS NULL",
     'ALTER TABLE credit_logs MODIFY amount DECIMAL(20,10) NOT NULL',
     'ALTER TABLE credit_logs MODIFY balance_after DECIMAL(20,10) NOT NULL',
     'ALTER TABLE usage_logs MODIFY credits_used DECIMAL(20,10) DEFAULT 0'

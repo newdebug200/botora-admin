@@ -37,8 +37,9 @@ function payment_user(array $data): array {
     }
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return [];
     $name = trim((string)($data['name'] ?? 'Client Botora')) ?: 'Client Botora';
-    $insert = $db->prepare('INSERT INTO users (name,email,license_key,status) VALUES (?,?,?,?)');
-    $insert->execute([$name, $email, generate_license(), 'active']);
+    $now = botora_server_now($db);
+    $insert = $db->prepare('INSERT INTO users (name,email,license_key,status,trial_started_at,trial_ends_at,trial_used) VALUES (?,?,?,?,?,?,?)');
+    $insert->execute([$name, $email, generate_license(), 'trial', $now->format('Y-m-d H:i:s'), $now->modify('+14 days')->format('Y-m-d H:i:s'), 1]);
     $newId = (int)$db->lastInsertId();
     $stmt = $db->prepare('SELECT * FROM users WHERE id = ? LIMIT 1');
     $stmt->execute([$newId]);
@@ -48,6 +49,49 @@ function payment_user(array $data): array {
   $user = $stmt->fetch() ?: [];
   if ($user) api_log_set_user((int)$user['id']);
   return $user;
+}
+
+function subscription_approved(int $paymentId, array $transaction, string $eventId, string $eventType, string $rawPayload): array {
+  $db = db();
+  $db->beginTransaction();
+  try {
+    $stmt = $db->prepare('SELECT * FROM subscription_payments WHERE id=? FOR UPDATE');
+    $stmt->execute([$paymentId]);
+    $payment = $stmt->fetch();
+    if (!$payment) throw new RuntimeException('Paiement abonnement introuvable.');
+    if ($eventId) {
+      try {
+        $db->prepare('INSERT INTO subscription_webhook_events (subscription_payment_id,event_id,event_type,payload) VALUES (?,?,?,?)')
+          ->execute([$paymentId, $eventId, $eventType, $rawPayload]);
+      } catch (PDOException $e) {
+        if ((string)$e->getCode() === '23000') { $db->commit(); return ['status'=>$payment['status'], 'already_processed'=>true]; }
+        throw $e;
+      }
+    }
+    $status = strtolower((string)($transaction['status'] ?? 'pending'));
+    if ($payment['status'] === 'approved') { $db->commit(); return ['status'=>'approved','already_processed'=>true]; }
+    if ($status !== 'approved') {
+      $db->prepare('UPDATE subscription_payments SET status=?,updated_at=NOW() WHERE id=?')->execute([$status,$paymentId]);
+      $db->commit();
+      return ['status'=>$status,'already_processed'=>false];
+    }
+    $userStmt = $db->prepare('SELECT subscription_ends_at FROM users WHERE id=? FOR UPDATE');
+    $userStmt->execute([$payment['user_id']]);
+    $currentEndRaw = $userStmt->fetchColumn();
+    $now = botora_server_now($db);
+    $currentEnd = null;
+    if ($currentEndRaw) { try { $currentEnd = new DateTimeImmutable((string)$currentEndRaw, new DateTimeZone('UTC')); } catch (Throwable $e) {} }
+    $base = $currentEnd && $currentEnd > $now ? $currentEnd : $now;
+    $end = $base->modify('+' . max(1, (int)$payment['duration_days']) . ' days');
+    $db->prepare('UPDATE subscription_payments SET status=\'approved\',approved_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$paymentId]);
+    $db->prepare("UPDATE users SET status='active', subscription_started_at=NOW(), subscription_ends_at=?, trial_used=1, updated_at=NOW() WHERE id=?")
+      ->execute([$end->format('Y-m-d H:i:s'), $payment['user_id']]);
+    $db->commit();
+    return ['status'=>'approved','already_processed'=>false,'subscription_ends_at'=>$end->format('Y-m-d H:i:s')];
+  } catch (Throwable $e) {
+    if ($db->inTransaction()) $db->rollBack();
+    throw $e;
+  }
 }
 
 function fedapay_sdk_payload_to_array($value): array {

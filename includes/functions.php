@@ -148,6 +148,48 @@ function add_credits(int $user_id, int $amount, string $reason, ?int $admin_id =
   }
 }
 
+function botora_server_now(PDO $db): DateTimeImmutable {
+  $raw = (string)$db->query('SELECT UTC_TIMESTAMP()')->fetchColumn();
+  try { return new DateTimeImmutable($raw !== '' ? $raw : 'now', new DateTimeZone('UTC')); }
+  catch (Throwable $e) { return new DateTimeImmutable('now', new DateTimeZone('UTC')); }
+}
+
+function botora_access(PDO $db, array $user, bool $persist = true): array {
+  $now = botora_server_now($db);
+  $status = strtolower((string)($user['status'] ?? 'expired'));
+  $subscriptionEnd = !empty($user['subscription_ends_at']) ? new DateTimeImmutable((string)$user['subscription_ends_at'], new DateTimeZone('UTC')) : null;
+  $trialEnd = !empty($user['trial_ends_at']) ? new DateTimeImmutable((string)$user['trial_ends_at'], new DateTimeZone('UTC')) : null;
+  $access = false;
+  $accessType = 'none';
+  $accessEnd = null;
+  if (in_array($status, ['suspended', 'banned'], true)) {
+    $accessType = $status;
+  } elseif ($subscriptionEnd && $subscriptionEnd > $now) {
+    $access = true;
+    $accessType = 'subscription';
+    $accessEnd = $subscriptionEnd;
+    if ($persist && $status !== 'active') $db->prepare("UPDATE users SET status='active', updated_at=NOW() WHERE id=?")->execute([(int)$user['id']]);
+  } elseif ($status === 'trial' && $trialEnd && $trialEnd > $now) {
+    $access = true;
+    $accessType = 'trial';
+    $accessEnd = $trialEnd;
+  } else {
+    $accessType = 'expired';
+    if ($persist && !in_array($status, ['expired', 'suspended', 'banned'], true)) $db->prepare("UPDATE users SET status='expired', updated_at=NOW() WHERE id=?")->execute([(int)$user['id']]);
+  }
+  $secondsLeft = $accessEnd ? max(0, $accessEnd->getTimestamp() - $now->getTimestamp()) : 0;
+  return [
+    'access_allowed' => $access,
+    'access_type' => $accessType,
+    'access_ends_at' => $accessEnd?->format('Y-m-d H:i:s'),
+    'trial_ends_at' => $trialEnd?->format('Y-m-d H:i:s'),
+    'trial_days_left' => $accessType === 'trial' ? (int)ceil($secondsLeft / 86400) : null,
+    'subscription_ends_at' => $subscriptionEnd?->format('Y-m-d H:i:s'),
+    'subscription_days_left' => $accessType === 'subscription' ? (int)ceil($secondsLeft / 86400) : null,
+    'server_time' => $now->format('Y-m-d H:i:s'),
+  ];
+}
+
 function api_json(array $data, int $code = 200): void {
   api_log_write($data, $code);
   http_response_code($code);

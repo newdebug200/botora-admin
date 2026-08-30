@@ -50,7 +50,11 @@ CREATE TABLE users (
   license_key CHAR(36) NOT NULL UNIQUE,
   status ENUM('trial','active','suspended','expired','banned') DEFAULT 'trial',
   credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0,
-  trial_ends_at DATE NULL,
+  trial_started_at DATETIME NULL,
+  trial_ends_at DATETIME NULL,
+  trial_used TINYINT(1) NOT NULL DEFAULT 1,
+  subscription_started_at DATETIME NULL,
+  subscription_ends_at DATETIME NULL,
   activated_at DATETIME NULL,
   notes TEXT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -118,6 +122,43 @@ CREATE TABLE payment_transactions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_payment_user (user_id, created_at),
   INDEX idx_payment_status (status)
+);
+
+CREATE TABLE subscription_config (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  price_xof DECIMAL(14,2) NOT NULL DEFAULT 0,
+  duration_days INT UNSIGNED NOT NULL DEFAULT 365,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO subscription_config (id, price_xof, duration_days, is_active) VALUES (1, 0, 365, 1);
+
+CREATE TABLE subscription_payments (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  external_id VARCHAR(100) NULL UNIQUE,
+  amount_xof DECIMAL(14,2) NOT NULL,
+  duration_days INT UNSIGNED NOT NULL DEFAULT 365,
+  status VARCHAR(40) NOT NULL DEFAULT 'pending',
+  description VARCHAR(255) NULL,
+  metadata JSON NULL,
+  approved_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_subscription_user (user_id, created_at),
+  INDEX idx_subscription_status (status)
+);
+
+CREATE TABLE subscription_webhook_events (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  subscription_payment_id INT UNSIGNED NULL,
+  event_id VARCHAR(255) NOT NULL UNIQUE,
+  event_type VARCHAR(100) NOT NULL,
+  payload LONGTEXT NOT NULL,
+  received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (subscription_payment_id) REFERENCES subscription_payments(id) ON DELETE SET NULL
 );
 
 CREATE TABLE payment_webhook_events (

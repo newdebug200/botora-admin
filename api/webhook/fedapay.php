@@ -58,12 +58,18 @@ try {
   $stmt = db()->prepare('SELECT id FROM payment_transactions WHERE external_id=? LIMIT 1');
   $stmt->execute([$externalId]);
   $paymentId = (int)$stmt->fetchColumn();
-  if (!$paymentId && !empty($payload['custom_metadata']['botora_payment_id'])) {
-    $paymentId = (int)$payload['custom_metadata']['botora_payment_id'];
+  if (!$paymentId && !empty($payload['custom_metadata']['botora_payment_id'])) $paymentId = (int)$payload['custom_metadata']['botora_payment_id'];
+  if ($paymentId) {
+    $result = payment_credit_approved($paymentId, $transaction, $eventId, $eventType, $raw);
+    api_json(['ok'=>true,'received'=>true,'processed'=>true,'payment_id'=>$paymentId,'payment_type'=>'credits','status'=>$result['status'] ?? $eventStatus]);
   }
-  if (!$paymentId) api_json(['ok' => false, 'received' => true, 'processed' => false, 'error' => 'Transaction non liée à un paiement Botora.'], 404);
-  $result = payment_credit_approved($paymentId, $transaction, $eventId, $eventType, $raw);
-  api_json(['ok' => true, 'received' => true, 'processed' => true, 'payment_id' => $paymentId, 'status' => $result['status'] ?? $eventStatus]);
+  $stmt = db()->prepare('SELECT id FROM subscription_payments WHERE external_id=? LIMIT 1');
+  $stmt->execute([$externalId]);
+  $subscriptionPaymentId = (int)$stmt->fetchColumn();
+  if (!$subscriptionPaymentId && !empty($payload['custom_metadata']['botora_subscription_payment_id'])) $subscriptionPaymentId = (int)$payload['custom_metadata']['botora_subscription_payment_id'];
+  if (!$subscriptionPaymentId) api_json(['ok'=>false,'received'=>true,'processed'=>false,'error'=>'Transaction non liée à un paiement Botora.'],404);
+  $result = subscription_approved($subscriptionPaymentId, $transaction, $eventId, $eventType, $raw);
+  api_json(['ok'=>true,'received'=>true,'processed'=>true,'payment_id'=>$subscriptionPaymentId,'payment_type'=>'subscription','status'=>$result['status'] ?? $eventStatus]);
 } catch (Throwable $e) {
   error_log('[Botora Admin] FedaPay webhook: ' . $e->getMessage());
   api_json(['ok' => false, 'error' => 'Webhook temporairement indisponible.'], 500);

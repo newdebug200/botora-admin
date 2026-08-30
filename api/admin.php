@@ -7,7 +7,7 @@ $resource = strtolower(trim((string)($_GET['resource'] ?? 'overview')));
 $data = payment_request_json();
 
 function admin_user_payload(array $u): array {
-  return ['id'=>(int)$u['id'],'name'=>$u['name'],'email'=>$u['email'],'company'=>$u['company'],'phone'=>$u['phone'],'license_key'=>$u['license_key'],'status'=>$u['status'],'credits_balance'=>(float)$u['credits_balance'],'created_at'=>$u['created_at'],'plan_id'=>$u['plan_id'] ? (int)$u['plan_id'] : null];
+  return ['id'=>(int)$u['id'],'name'=>$u['name'],'email'=>$u['email'],'company'=>$u['company'],'phone'=>$u['phone'],'license_key'=>$u['license_key'],'status'=>$u['status'],'credits_balance'=>(float)$u['credits_balance'],'created_at'=>$u['created_at'],'plan_id'=>$u['plan_id'] ? (int)$u['plan_id'] : null,'trial_started_at'=>$u['trial_started_at'] ?? null,'trial_ends_at'=>$u['trial_ends_at'] ?? null,'trial_used'=>(bool)($u['trial_used'] ?? true),'subscription_started_at'=>$u['subscription_started_at'] ?? null,'subscription_ends_at'=>$u['subscription_ends_at'] ?? null];
 }
 function admin_read_body(): array { return $GLOBALS['data']; }
 
@@ -74,6 +74,18 @@ try {
     $db->prepare('UPDATE users SET credits_balance=?,updated_at=NOW() WHERE id=?')->execute([$new,$user['id']]);
     $db->prepare('INSERT INTO credit_logs (user_id,amount,type,reason,balance_after) VALUES (?,?,?,?,?)')->execute([$user['id'],$amount,$amount>0?'add':'consume',$data['reason']??'Ajustement admin',$new]); $db->commit();
     api_json(['ok'=>true,'balance'=>$new]);
+  }
+  if ($resource === 'subscription' && $method === 'GET') {
+    $config = $db->query('SELECT id,price_xof,duration_days,is_active,updated_at FROM subscription_config WHERE id=1 LIMIT 1')->fetch() ?: ['id'=>1,'price_xof'=>0,'duration_days'=>365,'is_active'=>0,'updated_at'=>null];
+    api_json(['ok'=>true,'subscription'=>['price_xof'=>(float)$config['price_xof'],'duration_days'=>(int)$config['duration_days'],'is_active'=>(bool)$config['is_active'],'updated_at'=>$config['updated_at']]]);
+  }
+  if ($resource === 'subscription' && in_array($method, ['POST','PUT','PATCH'], true)) {
+    $price = (float)($data['price_xof'] ?? -1);
+    $duration = 365;
+    $active = array_key_exists('is_active', $data) ? (int)filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN) : 1;
+    if (!is_finite($price) || $price < 0) api_json(['ok'=>false,'error'=>'Prix d’abonnement invalide.'],400);
+    $db->prepare('INSERT INTO subscription_config (id,price_xof,duration_days,is_active) VALUES (1,?,?,?) ON DUPLICATE KEY UPDATE price_xof=VALUES(price_xof),duration_days=VALUES(duration_days),is_active=VALUES(is_active)')->execute([$price,$duration,$active]);
+    api_json(['ok'=>true,'subscription'=>['price_xof'=>$price,'duration_days'=>$duration,'is_active'=>(bool)$active]]);
   }
   if ($resource === 'plans' && $method === 'GET') {
     $plans = $db->query('SELECT * FROM plans ORDER BY price_xof ASC, price_eur ASC')->fetchAll();

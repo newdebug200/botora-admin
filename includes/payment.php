@@ -45,32 +45,65 @@ function payment_user(array $data): array {
   return $stmt->fetch() ?: [];
 }
 
-function fedapay_request(string $method, string $path, ?array $payload = null): array {
-  if (!function_exists('curl_init')) throw new RuntimeException('Extension PHP cURL non activée.');
-  if (FEDAPAY_SECRET_KEY === '') throw new RuntimeException('FEDAPAY_SECRET_KEY non configurée.');
-  $ch = curl_init(FEDAPAY_API_URL . '/' . ltrim($path, '/'));
-  $headers = ['Authorization: Bearer ' . FEDAPAY_SECRET_KEY, 'Content-Type: application/json', 'Accept: application/json'];
-  curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_CUSTOMREQUEST => strtoupper($method),
-    CURLOPT_HTTPHEADER => $headers,
-    CURLOPT_TIMEOUT => 25,
-  ]);
-  if ($payload !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_UNESCAPED_UNICODE));
-  $body = curl_exec($ch);
-  $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-  $error = curl_error($ch);
-  curl_close($ch);
-  if ($body === false || $error) throw new RuntimeException('FedaPay inaccessible: ' . ($error ?: 'réponse vide'));
-  $decoded = json_decode($body, true);
-  if ($status < 200 || $status >= 300) throw new RuntimeException('FedaPay HTTP ' . $status . ': ' . substr($body, 0, 500));
-  return is_array($decoded) ? $decoded : ['raw' => $body];
+function fedapay_sdk_payload_to_array($value): array {
+  if ($value === null) return [];
+  if (is_array($value)) return $value;
+  if (is_object($value)) {
+    if (method_exists($value, '__toArray')) return $value->__toArray(true);
+    if (method_exists($value, 'jsonSerialize')) return (array)$value->jsonSerialize();
+    return (array)$value;
+  }
+  return [];
 }
 
-function fedapay_unwrap(array $data): array {
-  if (isset($data['v1']) && is_array($data['v1'])) return $data['v1'];
-  if (isset($data['transaction']) && is_array($data['transaction'])) return $data['transaction'];
-  return $data;
+function fedapay_bootstrap(): void {
+  if (FEDAPAY_SECRET_KEY === '') throw new RuntimeException('FEDAPAY_SECRET_KEY non configurée.');
+  $base = preg_replace('#/v1/?$#i', '', trim((string)FEDAPAY_API_URL));
+  \FedaPay\FedaPay::setApiKey(FEDAPAY_SECRET_KEY);
+  \FedaPay\FedaPay::setApiBase($base !== '' ? $base : 'https://api.fedapay.com');
+}
+
+function fedapay_request(string $method, string $path, ?array $payload = null): array {
+  fedapay_bootstrap();
+  $segments = array_values(array_filter(explode('/', trim((string)$path, '/')), static fn($segment) => $segment !== ''));
+  if ($segments === []) throw new RuntimeException('Endpoint FedaPay vide.');
+  if ($segments[0] !== 'transactions') throw new RuntimeException('Endpoint FedaPay non supporté par le SDK: ' . $path);
+
+  $transactionId = $segments[1] ?? null;
+  $action = $segments[2] ?? null;
+
+  try {
+    switch (strtoupper($method)) {
+      case 'POST':
+        if ($transactionId === null && $action === null) {
+          $resource = \FedaPay\Transaction::create($payload ?? []);
+          return fedapay_sdk_payload_to_array($resource);
+        }
+        if ($transactionId !== null && $action === 'token') {
+          $resource = \FedaPay\Transaction::generateTokenFromId((string)$transactionId, $payload ?? [], []);
+          return fedapay_sdk_payload_to_array($resource);
+        }
+        throw new RuntimeException('Endpoint FedaPay POST non pris en charge: ' . $path);
+
+      case 'GET':
+        if ($transactionId === null) throw new RuntimeException('Transaction FedaPay manquante dans l’URL: ' . $path);
+        $resource = \FedaPay\Transaction::retrieve((string)$transactionId, [], []);
+        return fedapay_sdk_payload_to_array($resource);
+
+      default:
+        throw new RuntimeException('Méthode HTTP FedaPay non supportée: ' . $method);
+    }
+  } catch (\Throwable $e) {
+    if ($e instanceof RuntimeException) throw $e;
+    throw new RuntimeException('FedaPay SDK inaccessible: ' . $e->getMessage(), 0, $e);
+  }
+}
+
+function fedapay_unwrap($data): array {
+  $payload = fedapay_sdk_payload_to_array($data);
+  if (isset($payload['v1']) && is_array($payload['v1'])) return $payload['v1'];
+  if (isset($payload['transaction']) && is_array($payload['transaction'])) return $payload['transaction'];
+  return $payload;
 }
 
 function payment_credit_approved(int $paymentId, array $transaction, string $eventId, string $eventType, string $rawPayload): array {

@@ -1,6 +1,11 @@
 <?php
 // Botora Admin — Configuration
 // Toutes les valeurs sensibles peuvent être fournies par des variables d'environnement.
+$autoload = __DIR__ . '/vendor/autoload.php';
+if (is_file($autoload)) {
+  require_once $autoload;
+}
+
 function botora_setting(string $key, string $default = ''): string {
   $value = \getenv($key);
   if ($value !== false && trim((string)$value) !== '') return trim((string)$value);
@@ -51,10 +56,12 @@ define('API_KEY', botora_setting('BOTORA_API_KEY') ?: 'botora-api-key-change-me'
 define('APP_DEBUG', filter_var(botora_setting('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN));
 
 // FedaPay — use live keys only through server environment variables.
-define('FEDAPAY_SECRET_KEY', botora_setting('FEDAPAY_SECRET_KEY') ?: '');
-define('FEDAPAY_PUBLIC_KEY', botora_setting('FEDAPAY_PUBLIC_KEY') ?: '');
-define('FEDAPAY_WEBHOOK_SECRET', botora_setting('FEDAPAY_WEBHOOK_SECRET') ?: '');
-define('FEDAPAY_API_URL', rtrim(botora_setting('FEDAPAY_API_URL') ?: 'https://api.fedapay.com/v1', '/'));
+define('FEDAPAY_SECRET_KEY', botora_setting('FEDAPAY_SECRET_KEY') ?: 'sk_live_0BBv8DpE_J_vDnw7RTMji51T');
+define('FEDAPAY_PUBLIC_KEY', botora_setting('FEDAPAY_PUBLIC_KEY') ?: 'pk_live_xWyQ7phiPrc31sE3503lex1j');
+define('FEDAPAY_WEBHOOK_SECRET', botora_setting('FEDAPAY_WEBHOOK_SECRET') ?: 'wh_live_9kJfHnYvh1asZKSjjFFvoG8o');
+$fedapayApiUrl = trim((string)(botora_setting('FEDAPAY_API_URL') ?: 'https://api.fedapay.com'));
+$fedapayApiUrl = preg_replace('#/v1/?$#i', '', $fedapayApiUrl);
+define('FEDAPAY_API_URL', rtrim($fedapayApiUrl, '/'));
 define('CREDIT_TOKENS_PER_CREDIT', 100000);
 define('CREDIT_VALUE_XOF', 120);
 define('SESSION_LIFETIME', 3600 * 8);

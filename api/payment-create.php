@@ -17,7 +17,6 @@ try {
     'description' => 'Recharge Botora — ' . $credits . ' crédit(s)',
     'amount' => $amount,
     'currency' => ['iso' => 'XOF'],
-    'callback_url' => FEDAPAY_CALLBACK_URL,
     'custom_metadata' => ['botora_payment_id' => (string)$paymentId, 'user_id' => (string)$user['id'], 'credits' => (string)$credits],
     'customer' => ['firstname' => $user['name'] ?: 'Client', 'lastname' => 'Botora', 'email' => $user['email']]
   ]));

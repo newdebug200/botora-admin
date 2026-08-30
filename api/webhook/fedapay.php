@@ -21,7 +21,7 @@ if (!is_array($event)) api_json(['ok' => false, 'error' => 'Payload JSON invalid
 
 $findTransaction = static function ($value) use (&$findTransaction): array {
   if (!is_array($value)) return [];
-  foreach (['transaction', 'object', 'data', 'v1'] as $key) {
+  foreach (['entity', 'transaction', 'data', 'v1', 'object'] as $key) {
     if (isset($value[$key])) {
       $found = $findTransaction($value[$key]);
       if ($found) return $found;
@@ -35,7 +35,7 @@ $findTransaction = static function ($value) use (&$findTransaction): array {
 $payload = $findTransaction($event) ?: $event;
 $eventType = strtolower(trim((string)($event['name'] ?? $event['type'] ?? $event['event'] ?? '')));
 $eventType = preg_replace('/^event\./', '', $eventType);
-$externalId = (string)($payload['id'] ?? $payload['transaction_id'] ?? '');
+$externalId = (string)($payload['id'] ?? $payload['transaction_id'] ?? $event['object_id'] ?? '');
 $statusByEvent = [
   'transaction.canceled' => 'canceled',
   'transaction.declined' => 'declined',

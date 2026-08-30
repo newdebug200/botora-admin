@@ -1,0 +1,132 @@
+<?php
+$pageTitle = 'Transactions'; $activePage = 'transactions';
+require_once __DIR__ . '/../includes/header.php';
+
+$db = db();
+
+$statusFilter = $_GET['status'] ?? 'all';
+$search = trim((string)($_GET['q'] ?? ''));
+
+$where = [];
+$params = [];
+
+if ($statusFilter !== 'all' && $statusFilter !== '') {
+  $where[] = 'pt.status = ?';
+  $params[] = $statusFilter;
+}
+if ($search !== '') {
+  $where[] = '(u.name LIKE ? OR u.email LIKE ? OR pt.external_id LIKE ? OR pt.description LIKE ?)';
+  $like = '%' . $search . '%';
+  $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
+}
+
+$sql = "
+  SELECT pt.*, u.name AS user_name, u.email AS user_email, u.license_key,
+         u.credits_balance, p.name AS plan_name
+  FROM payment_transactions pt
+  LEFT JOIN users u ON u.id = pt.user_id
+  LEFT JOIN plans p ON p.id = u.plan_id
+";
+if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
+$sql .= ' ORDER BY pt.id DESC LIMIT 500';
+
+$stmt = $db->prepare($sql);
+$stmt->execute($params);
+$transactions = $stmt->fetchAll();
+
+$stats = [
+  'total' => (int)$db->query('SELECT COUNT(*) FROM payment_transactions')->fetchColumn(),
+  'approved' => (int)$db->query("SELECT COUNT(*) FROM payment_transactions WHERE status='approved'")->fetchColumn(),
+  'pending' => (int)$db->query("SELECT COUNT(*) FROM payment_transactions WHERE status='pending'")->fetchColumn(),
+  'failed' => (int)$db->query("SELECT COUNT(*) FROM payment_transactions WHERE status IN ('failed','creation_failed')")->fetchColumn(),
+];
+?>
+<div class="page-header">
+  <div>
+    <h1>Transactions</h1>
+    <p class="text-muted mb-0">Toutes les transactions de paiement, avec client, statut, montant et historique complet.</p>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M3 7h18v10H3V7zm2 2v6h14V9H5zm2 2h4v2H7v-2zm6 0h4v2h-4v-2z"/></svg></div>
+    <div class="stat-body"><div class="stat-value"><?= number_format($stats['total']) ?></div><div class="stat-label">Total</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+    <div class="stat-body"><div class="stat-value"><?= number_format($stats['approved']) ?></div><div class="stat-label">Approuvées</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg></div>
+    <div class="stat-body"><div class="stat-value"><?= number_format($stats['pending']) ?></div><div class="stat-label">En attente</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-2h2zm0-4h-2V7h2z"/></svg></div>
+    <div class="stat-body"><div class="stat-value"><?= number_format($stats['failed']) ?></div><div class="stat-label">Échec</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+    <h2>Filtrer</h2>
+    <form method="GET" class="search-form" style="margin:0;">
+      <select name="status" class="form-control" style="width:auto; min-width:160px;">
+        <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>Tous statuts</option>
+        <option value="pending" <?= $statusFilter === 'pending' ? 'selected' : '' ?>>En attente</option>
+        <option value="approved" <?= $statusFilter === 'approved' ? 'selected' : '' ?>>Approuvée</option>
+        <option value="failed" <?= $statusFilter === 'failed' ? 'selected' : '' ?>>Échouée</option>
+        <option value="creation_failed" <?= $statusFilter === 'creation_failed' ? 'selected' : '' ?>>Création échouée</option>
+        <option value="canceled" <?= $statusFilter === 'canceled' ? 'selected' : '' ?>>Annulée</option>
+        <option value="expired" <?= $statusFilter === 'expired' ? 'selected' : '' ?>>Expirée</option>
+        <option value="refunded" <?= $statusFilter === 'refunded' ? 'selected' : '' ?>>Remboursée</option>
+      </select>
+      <input type="search" name="q" value="<?= h($search) ?>" class="form-control" placeholder="Recherche client / email / ID / description" style="width:260px;">
+      <button type="submit" class="btn btn-primary">Filtrer</button>
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Client</th>
+          <th>Plan</th>
+          <th>Montant</th>
+          <th>Crédits</th>
+          <th>Statut</th>
+          <th>External ID</th>
+          <th>Description</th>
+          <th>Créée le</th>
+          <th>Approuvée le</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($transactions as $t): ?>
+        <tr>
+          <td><strong>#<?= (int)$t['id'] ?></strong></td>
+          <td>
+            <strong><?= h($t['user_name'] ?? '—') ?></strong><br>
+            <small class="text-muted"><?php echo h($t['user_email'] ?? '—'); ?></small><br>
+            <small class="text-muted">Licence: <?= h($t['license_key'] ?? '—') ?></small>
+          </td>
+          <td><?= h($t['plan_name'] ?? '—') ?></td>
+          <td><?= number_format((float)$t['amount_xof'], 0, ',', ' ') ?> XOF</td>
+          <td><?= number_format((float)$t['credits'], 0, ',', ' ') ?></td>
+          <td><?= payment_status_badge((string)$t['status']) ?></td>
+          <td><code><?= h((string)($t['external_id'] ?? '—')) ?></code></td>
+          <td><?= h((string)($t['description'] ?? '—')) ?></td>
+          <td><?= format_datetime($t['created_at']) ?></td>
+          <td><?= $t['approved_at'] ? format_datetime($t['approved_at']) : '—' ?></td>
+        </tr>
+        <?php endforeach; ?>
+        <?php if (empty($transactions)): ?>
+          <tr><td colspan="10" class="text-center text-muted py-4">Aucune transaction trouvée.</td></tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

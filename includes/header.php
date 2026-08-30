@@ -38,6 +38,10 @@ $expiring_soon = (int) db()->query("SELECT COUNT(*) FROM users WHERE status='tri
         Utilisateurs
         <?php if ($trial_users > 0): ?><span class="badge-pill"><?= $trial_users ?></span><?php endif; ?>
       </a></li>
+      <li><a href="<?= APP_URL ?>/admin/transactions.php" class="<?= ($activePage??'')==='transactions'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 7h18v10H3V7zm2 2v6h14V9H5zm2 2h4v2H7v-2zm6 0h4v2h-4v-2z"/></svg>
+        Transactions
+      </a></li>
       <li><a href="<?= APP_URL ?>/admin/reports.php" class="<?= ($activePage??'')==='reports'?'active':'' ?>">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"/></svg>
         Rapports

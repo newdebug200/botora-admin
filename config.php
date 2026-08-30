@@ -6,14 +6,63 @@ if (is_file($autoload)) {
   require_once $autoload;
 }
 
+function botora_load_env(string $path): void {
+  if (!is_file($path)) return;
+  $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+  if ($lines === false) return;
+  foreach ($lines as $line) {
+    $trimmed = trim($line);
+    if ($trimmed === '' || str_starts_with($trimmed, '#') || str_starts_with($trimmed, ';')) continue;
+
+    if (preg_match('/^export\s+([A-Za-z_][A-Za-z0-9_]*)=(.*)$/', $trimmed, $matches)) {
+      [, $key, $rawValue] = $matches;
+    } elseif (preg_match('/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/', $trimmed, $matches)) {
+      [, $key, $rawValue] = $matches;
+    } else {
+      continue;
+    }
+
+    $value = trim($rawValue);
+    if (preg_match('/^("|\')(.*)\1$/', $value, $quoted)) {
+      $value = $quoted[2];
+    }
+    $value = preg_replace('/\s+#.*$/', '', $value);
+    $value = trim($value);
+
+    if (getenv($key) === false) putenv($key . '=' . $value);
+    $_ENV[$key] = $value;
+    $_SERVER[$key] = $value;
+  }
+}
+
+botora_load_env(__DIR__ . '/.env');
+
 function botora_setting(string $key, string $default = ''): string {
-  $value = \getenv($key);
+  $value = getenv($key);
   if ($value !== false && trim((string)$value) !== '') return trim((string)$value);
   $serverValue = $_SERVER[$key] ?? '';
   return trim((string)$serverValue) !== '' ? trim((string)$serverValue) : $default;
 }
 
+$localEnvFileExists = is_file(__DIR__ . '/.env');
+$envMode = strtolower(trim((string)(botora_setting('APP_ENV') ?: '')));
+if ($envMode === '') {
+  $envMode = $localEnvFileExists ? 'local' : 'online';
+}
+if ($envMode === 'prod') $envMode = 'online';
+if ($envMode === 'development') $envMode = 'local';
 
+$explicitMode = strtolower(trim((string)(botora_setting('DB_MODE') ?: '')));
+if ($explicitMode === '') {
+  $explicitMode = $envMode;
+}
+
+if ($explicitMode === 'prod') $explicitMode = 'online';
+if ($explicitMode === 'development') $explicitMode = 'local';
+
+
+define('APP_ENV', $envMode);
+define('DB_MODE', $explicitMode);
 define('DB_HOST', botora_setting('DB_HOST') ?: 'localhost');
 define('DB_PORT', botora_setting('DB_PORT') ?: '3306');
 define('DB_NAME', botora_setting('DB_NAME') ?: 'botora_admin');
@@ -32,7 +81,7 @@ define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: '3306');
 define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: 'u920435648_botora_dbname');
 define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: 'u920435648_botora_usrname');
 define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: 'nunewqi_DS3');
-define('DB_MODE', strtolower(botora_setting('DB_MODE') ?: 'online'));
+
 define('DB_AUTO_MIGRATE', filter_var(botora_setting('DB_AUTO_MIGRATE') ?: 'true', FILTER_VALIDATE_BOOLEAN));
 
 // Premier compte créé automatiquement uniquement si aucun administrateur n’existe.

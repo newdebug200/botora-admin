@@ -25,6 +25,34 @@ function status_badge(string $status): string {
   return "<span class=\"badge {$cls}\">{$label}</span>";
 }
 
+function payment_status_badge(string $status): string {
+  $labelMap = [
+    'pending' => 'En attente',
+    'approved' => 'Approuvée',
+    'failed' => 'Échouée',
+    'creation_failed' => 'Création échouée',
+    'canceled' => 'Annulée',
+    'expired' => 'Expirée',
+    'refunded' => 'Remboursée',
+  ];
+
+  $classMap = [
+    'pending' => 'badge-warning',
+    'approved' => 'badge-success',
+    'failed' => 'badge-danger',
+    'creation_failed' => 'badge-danger',
+    'canceled' => 'badge-secondary',
+    'expired' => 'badge-secondary',
+    'refunded' => 'badge-dark',
+  ];
+
+  $key = strtolower(trim((string)$status));
+  $label = $labelMap[$key] ?? ucfirst(str_replace('_', ' ', $key));
+  $cls = $classMap[$key] ?? 'badge-secondary';
+
+  return "<span class=\"badge {$cls}\">{$label}</span>";
+}
+
 function format_date(?string $d): string {
   if (!$d) return '—';
   return date('d/m/Y', strtotime($d));

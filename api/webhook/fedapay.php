@@ -4,7 +4,8 @@ require_once __DIR__ . '/../../includes/payment.php';
 // Le SDK officiel est optionnel en développement et obligatoire lorsque la signature est activée.
 $autoload = __DIR__ . '/../../vendor/autoload.php';
 if (is_file($autoload)) require_once $autoload;
-$raw = file_get_contents('php://input') ?: '{}';
+$raw = (string)($GLOBALS['_botora_api_log']['raw_body'] ?? '');
+if ($raw === '') $raw = '{}';
 if (defined('FEDAPAY_WEBHOOK_SECRET') && FEDAPAY_WEBHOOK_SECRET !== '') {
   $signature = $_SERVER['HTTP_X_FEDAPAY_SIGNATURE'] ?? '';
   try {

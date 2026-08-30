@@ -3,6 +3,7 @@ require_once __DIR__ . '/db.php';
 
 $GLOBALS['_botora_api_log'] = [
   'started_at' => microtime(true),
+  'raw_body' => null,
   'request_data' => null,
   'payload' => null,
   'user_id' => null,
@@ -24,6 +25,7 @@ function api_log_sanitize($value) {
 function api_log_initialize(): void {
   if ($GLOBALS['_botora_api_log']['payload'] !== null) return;
   $raw = file_get_contents('php://input');
+  $GLOBALS['_botora_api_log']['raw_body'] = $raw ?: '';
   $decoded = json_decode($raw ?: '', true);
   $requestData = is_array($decoded) ? $decoded : (!empty($_POST) ? $_POST : ($raw !== '' ? $raw : $_GET));
   $GLOBALS['_botora_api_log']['request_data'] = $requestData;

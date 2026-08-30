@@ -1,8 +1,47 @@
 <?php
 $pageTitle = 'Transactions'; $activePage = 'transactions';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
+auth_check();
 
 $db = db();
+$returnQuery = http_build_query(array_filter([
+  'status' => $_GET['status'] ?? '',
+  'q' => $_GET['q'] ?? '',
+]));
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $action = $_POST['action'] ?? '';
+  $transactionId = (int)($_POST['transaction_id'] ?? 0);
+  try {
+    if (!$transactionId) throw new InvalidArgumentException('Transaction invalide.');
+    if ($action === 'update_transaction') {
+      $status = strtolower(trim((string)($_POST['status'] ?? '')));
+      $amount = (float)($_POST['amount_xof'] ?? 0);
+      $credits = (float)($_POST['credits'] ?? 0);
+      $externalId = trim((string)($_POST['external_id'] ?? '')) ?: null;
+      $description = trim((string)($_POST['description'] ?? '')) ?: null;
+      $allowedStatuses = ['pending', 'approved', 'failed', 'creation_failed', 'canceled', 'declined', 'deleted', 'expired', 'refunded'];
+      if (!in_array($status, $allowedStatuses, true)) throw new InvalidArgumentException('Statut invalide.');
+      if (!is_finite($amount) || $amount < 0 || !is_finite($credits) || $credits < 0) throw new InvalidArgumentException('Montant ou crédits invalides.');
+      $approvedAt = $status === 'approved' ? date('Y-m-d H:i:s') : null;
+      $stmt = $db->prepare('UPDATE payment_transactions SET external_id=?, amount_xof=?, credits=?, status=?, description=?, approved_at=?, updated_at=NOW() WHERE id=?');
+      $stmt->execute([$externalId, $amount, $credits, $status, $description, $approvedAt, $transactionId]);
+      flash_set('success', 'Transaction mise à jour.');
+    } elseif ($action === 'delete_transaction') {
+      $stmt = $db->prepare('DELETE FROM payment_transactions WHERE id=?');
+      $stmt->execute([$transactionId]);
+      if ($stmt->rowCount() === 0) throw new RuntimeException('Transaction introuvable.');
+      flash_set('success', 'Transaction supprimée.');
+    }
+  } catch (Throwable $e) {
+    flash_set('error', $e instanceof InvalidArgumentException ? $e->getMessage() : 'Impossible de modifier cette transaction.');
+  }
+  header('Location: ' . APP_URL . '/admin/transactions.php' . ($returnQuery ? '?' . $returnQuery : ''));
+  exit;
+}
+
+require_once __DIR__ . '/../includes/header.php';
 
 $statusFilter = $_GET['status'] ?? 'all';
 $search = trim((string)($_GET['q'] ?? ''));
@@ -100,6 +139,7 @@ $stats = [
           <th>Description</th>
           <th>Créée le</th>
           <th>Approuvée le</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -119,14 +159,62 @@ $stats = [
           <td><?= h((string)($t['description'] ?? '—')) ?></td>
           <td><?= format_datetime($t['created_at']) ?></td>
           <td><?= $t['approved_at'] ? format_datetime($t['approved_at']) : '—' ?></td>
+          <td class="actions">
+            <button type="button" class="btn btn-sm btn-outline transaction-edit-trigger" data-bs-toggle="modal" data-bs-target="#transaction-edit-modal" data-id="<?= (int)$t['id'] ?>" data-status="<?= h($t['status']) ?>" data-amount="<?= h((string)$t['amount_xof']) ?>" data-credits="<?= h((string)$t['credits']) ?>" data-external-id="<?= h((string)($t['external_id'] ?? '')) ?>" data-description="<?= h((string)($t['description'] ?? '')) ?>">Modifier</button>
+            <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer définitivement la transaction #<?= (int)$t['id'] ?> ? Cette action est irréversible.');">
+              <input type="hidden" name="action" value="delete_transaction">
+              <input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>">
+              <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+            </form>
+          </td>
         </tr>
         <?php endforeach; ?>
         <?php if (empty($transactions)): ?>
-          <tr><td colspan="10" class="text-center text-muted py-4">Aucune transaction trouvée.</td></tr>
+          <tr><td colspan="11" class="text-center text-muted py-4">Aucune transaction trouvée.</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
   </div>
 </div>
+
+<div class="modal fade" id="transaction-edit-modal" tabindex="-1" aria-labelledby="transaction-edit-title" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="transaction-edit-title">Modifier la transaction</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <form method="POST">
+        <div class="modal-body">
+          <input type="hidden" name="action" value="update_transaction">
+          <input type="hidden" name="transaction_id" id="transaction-edit-id">
+          <div class="form-row">
+            <div class="form-group"><label for="transaction-edit-status">Statut</label><select name="status" id="transaction-edit-status" class="form-control" required><?php foreach (['pending','approved','failed','creation_failed','canceled','declined','deleted','expired','refunded'] as $status): ?><option value="<?= $status ?>"><?= ucfirst(str_replace('_', ' ', $status)) ?></option><?php endforeach; ?></select></div>
+            <div class="form-group"><label for="transaction-edit-amount">Montant (XOF)</label><input type="number" name="amount_xof" id="transaction-edit-amount" class="form-control" min="0" step="0.01" required></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label for="transaction-edit-credits">Crédits</label><input type="number" name="credits" id="transaction-edit-credits" class="form-control" min="0" step="0.0000000001" required></div>
+            <div class="form-group"><label for="transaction-edit-external-id">External ID FedaPay</label><input type="text" name="external_id" id="transaction-edit-external-id" class="form-control" maxlength="100"></div>
+          </div>
+          <div class="form-group"><label for="transaction-edit-description">Description</label><textarea name="description" id="transaction-edit-description" class="form-control" rows="4"></textarea></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.transaction-edit-trigger').forEach(function (button) {
+  button.addEventListener('click', function () {
+    document.getElementById('transaction-edit-id').value = button.dataset.id;
+    document.getElementById('transaction-edit-status').value = button.dataset.status;
+    document.getElementById('transaction-edit-amount').value = button.dataset.amount;
+    document.getElementById('transaction-edit-credits').value = button.dataset.credits;
+    document.getElementById('transaction-edit-external-id').value = button.dataset.externalId;
+    document.getElementById('transaction-edit-description').value = button.dataset.description;
+  });
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

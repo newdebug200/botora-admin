@@ -1,8 +1,17 @@
 <?php
 $pageTitle = 'Logs API'; $activePage = 'api-logs';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
+auth_check();
 
 $db = db();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'clear_api_logs') {
+  $db->exec('DELETE FROM api_logs');
+  flash_set('success', 'Tous les logs API ont été supprimés.');
+  header('Location: ' . APP_URL . '/admin/api-logs.php');
+  exit;
+}
+
 $db->exec("DELETE FROM api_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 15 DAY)");
 
 $perPage = 20;
@@ -12,12 +21,17 @@ $total = count($latest);
 $totalPages = max(1, (int)ceil($total / $perPage));
 $page = min($page, $totalPages);
 $logs = array_slice($latest, ($page - 1) * $perPage, $perPage);
+require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="page-header">
   <div>
     <h1>Logs API <span class="text-muted">(<?= $total ?> derniers)</span></h1>
     <p class="text-muted mb-0">Les appels API des 15 derniers jours, avec payload, réponse et contexte technique.</p>
   </div>
+  <form method="POST" onsubmit="return confirm('Vider définitivement tous les logs API ? Cette action est irréversible.');">
+    <input type="hidden" name="action" value="clear_api_logs">
+    <button type="submit" class="btn btn-danger">Vider tous les logs</button>
+  </form>
 </div>
 
 <div class="card">

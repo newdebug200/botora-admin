@@ -1,4 +1,62 @@
 <?php
+require_once __DIR__ . '/db.php';
+
+$GLOBALS['_botora_api_log'] = [
+  'started_at' => microtime(true),
+  'request_data' => null,
+  'payload' => null,
+  'user_id' => null,
+];
+
+function api_log_sanitize($value) {
+  $sensitive = ['password', 'password_hash', 'token', 'payment_token', 'secret', 'api_key', 'authorization', 'access_token'];
+  if (is_array($value)) {
+    $clean = [];
+    foreach ($value as $key => $item) {
+      $clean[$key] = in_array(strtolower((string)$key), $sensitive, true) ? '[redacted]' : api_log_sanitize($item);
+    }
+    return $clean;
+  }
+  return is_object($value) ? api_log_sanitize((array)$value) : $value;
+}
+
+function api_log_initialize(): void {
+  if ($GLOBALS['_botora_api_log']['payload'] !== null) return;
+  $raw = file_get_contents('php://input');
+  $decoded = json_decode($raw ?: '', true);
+  $requestData = is_array($decoded) ? $decoded : (!empty($_POST) ? $_POST : ($raw !== '' ? $raw : $_GET));
+  $GLOBALS['_botora_api_log']['request_data'] = $requestData;
+  $GLOBALS['_botora_api_log']['payload'] = api_log_sanitize($requestData);
+}
+
+function api_log_set_user(?int $userId): void {
+  $GLOBALS['_botora_api_log']['user_id'] = $userId ?: null;
+}
+
+function api_log_write(array $response, int $statusCode): void {
+  try {
+    $db = db();
+    $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
+    $route = (string)(parse_url($requestUri, PHP_URL_PATH) ?: ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $stmt = $db->prepare('INSERT INTO api_logs (user_id,method,route,ip_address,user_agent,payload,response,status_code,response_ms) VALUES (?,?,?,?,?,?,?,?,?)');
+    $stmt->execute([
+      $GLOBALS['_botora_api_log']['user_id'],
+      (string)($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+      $route,
+      substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45) ?: null,
+      substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 500) ?: null,
+      json_encode($GLOBALS['_botora_api_log']['payload'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+      json_encode(api_log_sanitize($response), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+      $statusCode,
+      (int)round((microtime(true) - $GLOBALS['_botora_api_log']['started_at']) * 1000),
+    ]);
+  } catch (Throwable $e) {
+    error_log('[Botora API log] ' . $e->getMessage());
+  }
+}
+
+api_log_initialize();
+
 function generate_license(): string {
   return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
     mt_rand(0, 0xffff), mt_rand(0, 0xffff),
@@ -82,6 +140,7 @@ function add_credits(int $user_id, int $amount, string $reason, ?int $admin_id =
 }
 
 function api_json(array $data, int $code = 200): void {
+  api_log_write($data, $code);
   http_response_code($code);
   header('Content-Type: application/json; charset=utf-8');
   echo json_encode($data, JSON_UNESCAPED_UNICODE);

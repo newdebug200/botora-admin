@@ -130,6 +130,25 @@ CREATE TABLE payment_webhook_events (
   FOREIGN KEY (payment_id) REFERENCES payment_transactions(id) ON DELETE SET NULL
 );
 
+-- API request and response audit trail. Payloads are sanitized before storage.
+CREATE TABLE api_logs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NULL,
+  method VARCHAR(10) NOT NULL,
+  route VARCHAR(255) NOT NULL,
+  ip_address VARCHAR(45) NULL,
+  user_agent VARCHAR(500) NULL,
+  payload LONGTEXT NULL,
+  response LONGTEXT NULL,
+  status_code SMALLINT UNSIGNED NOT NULL,
+  response_ms INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_api_logs_created (created_at),
+  INDEX idx_api_logs_user (user_id),
+  INDEX idx_api_logs_route (route)
+);
+
 
 -- Platform feature switches managed centrally
 CREATE TABLE platform_features (

@@ -8,7 +8,7 @@ verify_api_key();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') api_json(['ok'=>false,'error'=>'Method not allowed'],405);
 
-$body        = json_decode(file_get_contents('php://input'), true);
+$body        = payment_request_json();
 $license_key = trim($body['license_key'] ?? '');
 $amount      = max(0, (int)($body['amount'] ?? 1));
 $event_type  = trim($body['event_type'] ?? 'unknown');
@@ -22,6 +22,7 @@ $stmt->execute([$license_key]);
 $user = $stmt->fetch();
 
 if (!$user) api_json(['ok'=>false,'error'=>'Licence inconnue.'],404);
+api_log_set_user((int)$user['id']);
 if (!in_array($user['status'],['trial','active'])) api_json(['ok'=>false,'error'=>'Compte non actif.']);
 if ($user['credits_balance'] < $amount) api_json(['ok'=>false,'error'=>'Crédits insuffisants.','credits_balance'=>(int)$user['credits_balance']]);
 

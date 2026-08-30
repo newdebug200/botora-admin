@@ -11,9 +11,8 @@ set_exception_handler(function (Throwable $e): void {
 });
 
 function payment_request_json(): array {
-  $raw = file_get_contents('php://input');
-  $data = json_decode($raw ?: '{}', true);
-  return is_array($data) ? $data : [];
+  $payload = $GLOBALS['_botora_api_log']['request_data'] ?? [];
+  return is_array($payload) ? $payload : [];
 }
 
 function verify_service_key(): void {
@@ -31,7 +30,10 @@ function payment_user(array $data): array {
     $stmt = $db->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $existing = $stmt->fetch();
-    if ($existing) return $existing;
+    if ($existing) {
+      api_log_set_user((int)$existing['id']);
+      return $existing;
+    }
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return [];
     $name = trim((string)($data['name'] ?? 'Client Botora')) ?: 'Client Botora';
     $insert = $db->prepare('INSERT INTO users (name,email,license_key,status) VALUES (?,?,?,?)');
@@ -42,7 +44,9 @@ function payment_user(array $data): array {
   } else {
     return [];
   }
-  return $stmt->fetch() ?: [];
+  $user = $stmt->fetch() ?: [];
+  if ($user) api_log_set_user((int)$user['id']);
+  return $user;
 }
 
 function fedapay_sdk_payload_to_array($value): array {

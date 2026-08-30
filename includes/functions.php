@@ -43,7 +43,7 @@ function api_log_write(array $response, int $statusCode): void {
     $db = db();
     $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
     $route = (string)(parse_url($requestUri, PHP_URL_PATH) ?: ($_SERVER['SCRIPT_NAME'] ?? ''));
-    $error = $GLOBALS['_botora_api_log']['error'] ?: (($statusCode >= 400 && isset($response['error'])) ? (string)$response['error'] : null);
+    $error = $GLOBALS['_botora_api_log']['error'];
     $stmt = $db->prepare('INSERT INTO api_logs (user_id,method,route,ip_address,user_agent,payload,response,error_message,status_code,response_ms) VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
       $GLOBALS['_botora_api_log']['user_id'],
@@ -147,7 +147,6 @@ function add_credits(int $user_id, int $amount, string $reason, ?int $admin_id =
 }
 
 function api_json(array $data, int $code = 200): void {
-  if ($code >= 400 && isset($data['error'])) api_log_set_error((string)$data['error']);
   api_log_write($data, $code);
   http_response_code($code);
   header('Content-Type: application/json; charset=utf-8');

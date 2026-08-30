@@ -20,9 +20,19 @@ $event = json_decode($raw, true);
 if (!is_array($event)) api_json(['ok' => false, 'error' => 'Payload JSON invalide.'], 400);
 $payload = $event['object'] ?? $event['data'] ?? $event['transaction'] ?? $event;
 if (isset($payload['transaction']) && is_array($payload['transaction'])) $payload = $payload['transaction'];
-$eventType = strtolower((string)($event['name'] ?? $event['type'] ?? $event['event'] ?? ''));
+$eventType = strtolower(trim((string)($event['name'] ?? $event['type'] ?? $event['event'] ?? '')));
 $externalId = (string)($payload['id'] ?? '');
-$eventStatus = strtolower((string)($payload['status'] ?? ''));
+$statusByEvent = [
+  'transaction.canceled' => 'canceled',
+  'transaction.declined' => 'declined',
+  'transaction.deleted' => 'deleted',
+  'transaction.approved' => 'approved',
+  'canceled' => 'canceled',
+  'declined' => 'declined',
+  'deleted' => 'deleted',
+  'approved' => 'approved',
+];
+$eventStatus = $statusByEvent[$eventType] ?? strtolower((string)($payload['status'] ?? ''));
 $eventVersion = (string)($payload['updated_at'] ?? $payload['created_at'] ?? '');
 $eventId = $eventType . ':' . $externalId . ':' . ($eventStatus ?: 'unknown') . ':' . ($eventVersion ?: hash('sha256', $raw));
 if ($externalId === '') api_json(['ok' => true, 'received' => true]);
@@ -30,6 +40,7 @@ try {
   // Le payload webhook n’est jamais considéré comme preuve suffisante :
   // la transaction est relue directement depuis FedaPay.
   $transaction = fedapay_unwrap(fedapay_request('GET', '/transactions/' . rawurlencode($externalId)));
+  if (isset($statusByEvent[$eventType])) $transaction['status'] = $statusByEvent[$eventType];
   $stmt = db()->prepare('SELECT id FROM payment_transactions WHERE external_id=? LIMIT 1');
   $stmt->execute([$externalId]);
   $paymentId = (int)$stmt->fetchColumn();

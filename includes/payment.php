@@ -132,8 +132,13 @@ function payment_credit_approved(int $paymentId, array $transaction, string $eve
       $db->commit();
       return ['status' => 'approved', 'already_processed' => true, 'credits' => (float)$payment['credits']];
     }
-    $db->prepare('UPDATE payment_transactions SET status=?, approved_at=CASE WHEN ?="approved" THEN NOW() ELSE approved_at END, updated_at=NOW() WHERE id=?')
-      ->execute([$status, $status, $paymentId]);
+    if ($status === 'approved') {
+      $db->prepare('UPDATE payment_transactions SET status=?, approved_at=NOW(), updated_at=NOW() WHERE id=?')
+        ->execute([$status, $paymentId]);
+    } else {
+      $db->prepare('UPDATE payment_transactions SET status=?, updated_at=NOW() WHERE id=?')
+        ->execute([$status, $paymentId]);
+    }
     if ($status === 'approved') {
       $db->prepare('UPDATE users SET credits_balance = credits_balance + ?, updated_at = NOW() WHERE id = ?')->execute([$payment['credits'], $payment['user_id']]);
       $balanceStmt = $db->prepare('SELECT credits_balance FROM users WHERE id=?');

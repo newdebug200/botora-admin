@@ -70,11 +70,32 @@ try {
   }
   if ($resource === 'credits' && $method === 'POST') {
     $user = payment_user($data); $amount=(float)($data['amount'] ?? 0); if (!$user || !is_finite($amount) || $amount===0.0) api_json(['ok'=>false,'error'=>'Utilisateur ou montant invalide.'],400);
-    $db->beginTransaction();
-    $lock=$db->prepare('SELECT credits_balance FROM users WHERE id=? FOR UPDATE'); $lock->execute([$user['id']]); $balance=(float)$lock->fetchColumn(); $new=max(0,$balance+$amount);
-    $db->prepare('UPDATE users SET credits_balance=?,updated_at=NOW() WHERE id=?')->execute([$new,$user['id']]);
-    $db->prepare('INSERT INTO credit_logs (user_id,amount,type,reason,balance_after) VALUES (?,?,?,?,?)')->execute([$user['id'],$amount,$amount>0?'add':'consume',$data['reason']??'Ajustement admin',$new]); $db->commit();
-    api_json(['ok'=>true,'balance'=>$new]);
+    record_credit_adjustment((int)$user['id'], $amount, (string)($data['reason'] ?? 'Ajustement admin'), null);
+    $balanceStmt = $db->prepare('SELECT credits_balance FROM users WHERE id=?'); $balanceStmt->execute([(int)$user['id']]);
+    api_json(['ok'=>true,'balance'=>(float)$balanceStmt->fetchColumn()]);
+  }
+  if ($resource === 'credit-config' && $method === 'GET') {
+    $config = credit_conversion($db);
+    api_json(['ok'=>true,'credit_config'=>$config]);
+  }
+  if ($resource === 'credit-config' && in_array($method, ['POST','PUT','PATCH'], true)) {
+    $creditsPerUnit = (float)($data['credits_per_unit'] ?? 0);
+    $xofPerUnit = (float)($data['xof_per_unit'] ?? -1);
+    if (!is_finite($creditsPerUnit) || $creditsPerUnit <= 0 || !is_finite($xofPerUnit) || $xofPerUnit <= 0) api_json(['ok'=>false,'error'=>'Conversion crédits/XOF invalide.'],400);
+    $db->prepare('INSERT INTO credit_config (id,tokens_per_unit,credits_per_unit,xof_per_unit) VALUES (1,100000,?,?,?) ON DUPLICATE KEY UPDATE tokens_per_unit=100000,credits_per_unit=VALUES(credits_per_unit),xof_per_unit=VALUES(xof_per_unit)')->execute([$creditsPerUnit,$xofPerUnit]);
+    api_json(['ok'=>true,'credit_config'=>credit_conversion($db)]);
+  }
+  if ($resource === 'credit-usage' && $method === 'GET') {
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $perPage = min(1000, max(50, (int)($_GET['per_page'] ?? 50)));
+    $where = []; $params = [];
+    if (!empty($_GET['user_id'])) { $where[]='ul.user_id=?'; $params[]=(int)$_GET['user_id']; }
+    if (!empty($_GET['email'])) { $where[]='u.email=?'; $params[]=strtolower(trim((string)$_GET['email'])); }
+    $whereSql = $where ? ' WHERE '.implode(' AND ', $where) : '';
+    $countStmt=$db->prepare("SELECT COUNT(*) FROM usage_logs ul LEFT JOIN users u ON u.id=ul.user_id{$whereSql}"); $countStmt->execute($params); $total=(int)$countStmt->fetchColumn();
+    $offset=($page-1)*$perPage;
+    $stmt=$db->prepare("SELECT ul.id,ul.user_id,ul.event_type,ul.credits_used,ul.meta,ul.logged_at,u.name,u.email FROM usage_logs ul LEFT JOIN users u ON u.id=ul.user_id{$whereSql} ORDER BY ul.logged_at DESC,ul.id DESC LIMIT {$perPage} OFFSET {$offset}"); $stmt->execute($params);
+    api_json(['ok'=>true,'usage'=>$stmt->fetchAll(),'pagination'=>['page'=>$page,'per_page'=>$perPage,'total'=>$total,'pages'=>max(1,(int)ceil($total/$perPage))]]);
   }
   if ($resource === 'subscription' && $method === 'GET') {
     $config = $db->query('SELECT id,price_xof,duration_days,is_active,updated_at FROM subscription_config WHERE id=1 LIMIT 1')->fetch() ?: ['id'=>1,'price_xof'=>0,'duration_days'=>365,'is_active'=>0,'updated_at'=>null];

@@ -5,10 +5,20 @@ require_superadmin();
 
 $db = db();
 $subscriptionConfig = $db->query('SELECT price_xof,duration_days,is_active FROM subscription_config WHERE id=1 LIMIT 1')->fetch() ?: ['price_xof'=>0,'duration_days'=>365,'is_active'=>0];
+$creditConfig = credit_conversion($db);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
-  if ($action === 'update_subscription') {
+  if ($action === 'update_credit_conversion') {
+    $creditsPerUnit = (float)($_POST['credits_per_unit'] ?? 0);
+    $xofPerUnit = (float)($_POST['xof_per_unit'] ?? -1);
+    if (!is_finite($creditsPerUnit) || $creditsPerUnit <= 0 || !is_finite($xofPerUnit) || $xofPerUnit <= 0) {
+      flash_set('danger', 'La conversion crédits/XOF est invalide.');
+    } else {
+      $db->prepare('INSERT INTO credit_config (id,tokens_per_unit,credits_per_unit,xof_per_unit) VALUES (1,100000,?,?,?) ON DUPLICATE KEY UPDATE tokens_per_unit=100000,credits_per_unit=VALUES(credits_per_unit),xof_per_unit=VALUES(xof_per_unit)')->execute([$creditsPerUnit,$xofPerUnit]);
+      flash_set('success', 'Configuration de conversion des crédits enregistrée.');
+    }
+  } elseif ($action === 'update_subscription') {
     $price = (float)($_POST['subscription_price_xof'] ?? 0);
     $duration = 365;
     $active = isset($_POST['subscription_active']) ? 1 : 0;
@@ -67,6 +77,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <label class="checkbox-label"><input type="checkbox" name="subscription_active" <?= !empty($subscriptionConfig['is_active']) ? 'checked' : '' ?>> Offre disponible pour les utilisateurs</label>
     <button type="submit" class="btn btn-primary">Enregistrer l’offre</button>
+  </form>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-header"><h2>Conversion des crédits</h2></div>
+  <form method="POST" class="form-body">
+    <input type="hidden" name="action" value="update_credit_conversion">
+    <p class="text-muted">Cette règle est utilisée pour les nouveaux paiements et les futures consommations. Les transactions et consommations historiques conservent toujours leur conversion d’origine.</p>
+    <div class="form-row">
+      <div class="form-group"><label for="credits-per-unit">Crédits pour 100 000 tokens</label><input id="credits-per-unit" type="number" name="credits_per_unit" class="form-control" min="0.0000000001" step="0.0000000001" required value="<?= h((string)$creditConfig['credits_per_unit']) ?>"></div>
+      <div class="form-group"><label for="xof-per-unit">Prix pour 100 000 tokens (XOF)</label><input id="xof-per-unit" type="number" name="xof_per_unit" class="form-control" min="0.01" step="0.01" required value="<?= h((string)$creditConfig['xof_per_unit']) ?>"></div>
+    </div>
+    <div class="info-row"><span>Unité de tokens</span><strong>100 000 tokens (fixe)</strong></div>
+    <div class="info-row"><span>Prix calculé par crédit</span><strong><?= number_format($creditConfig['xof_per_credit'], 2, ',', ' ') ?> XOF</strong></div>
+    <button type="submit" class="btn btn-primary">Enregistrer la conversion</button>
   </form>
 </div>
 

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_superadmin();
 $db = db();
+$creditConfig = credit_conversion($db);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $userId=(int)($_POST['user_id']??0); $amount=(float)($_POST['amount']??0); $reason=trim((string)($_POST['reason']??'Ajustement admin')) ?: 'Ajustement admin';
@@ -34,7 +35,7 @@ require_once __DIR__ . '/../includes/header.php';
   @media(max-width:620px){.credits-intro{display:block}.credits-unit{display:inline-block;margin-top:12px;white-space:normal}.credit-stat-grid{grid-template-columns:1fr 1fr;gap:9px}.credit-stat{padding:13px}.credit-stat strong{font-size:18px}.table-toolbar{display:block}.table-toolbar .search-box{max-width:none;margin-bottom:8px}.credits-form{grid-template-columns:1fr}}
 </style>
 
-<div class="credits-intro"><div><div class="text-uppercase small fw-bold text-success">Administration centrale</div><h1 class="mb-1">Crédits</h1><p class="text-muted mb-0">Le solde officiel utilisé par la plateforme et les consommations IA.</p></div><span class="credits-unit">1 crédit = 100 000 tokens = 120 F CFA</span></div>
+<div class="credits-intro"><div><div class="text-uppercase small fw-bold text-success">Administration centrale</div><h1 class="mb-1">Crédits</h1><p class="text-muted mb-0">Le solde officiel utilisé par la plateforme et les consommations IA.</p></div><span class="credits-unit">100 000 tokens = <?= number_format($creditConfig['credits_per_unit'], 6, ',', ' ') ?> crédit(s) = <?= number_format($creditConfig['xof_per_unit'], 2, ',', ' ') ?> F CFA</span></div>
 
 <div class="credit-stat-grid">
   <div class="credit-stat"><strong><?= number_format($totalUsers) ?></strong><span>Comptes suivis</span></div>

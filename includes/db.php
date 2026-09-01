@@ -88,10 +88,12 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
     "ALTER TABLE payment_transactions ADD COLUMN admin_id INT UNSIGNED NULL AFTER user_id",
     "ALTER TABLE payment_transactions ADD COLUMN transaction_type VARCHAR(30) NOT NULL DEFAULT 'payment' AFTER credits",
     'ALTER TABLE payment_transactions ADD INDEX idx_payment_type (transaction_type, status)',
+    'CREATE TABLE IF NOT EXISTS credit_config (id TINYINT UNSIGNED PRIMARY KEY, tokens_per_unit INT UNSIGNED NOT NULL DEFAULT 100000, credits_per_unit DECIMAL(20,10) NOT NULL DEFAULT 1, xof_per_unit DECIMAL(14,2) NOT NULL DEFAULT 120, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)',
+    "INSERT IGNORE INTO credit_config (id,tokens_per_unit,credits_per_unit,xof_per_unit) VALUES (1,100000,1,120)",
     'ALTER TABLE api_logs ADD COLUMN error_message LONGTEXT NULL AFTER response'
   ] as $migration) {
     try { $pdo->exec($migration); } catch (PDOException $e) {
-      if (!preg_match('/unknown column|doesn.t exist|no such table|duplicate column|already exists/i', $e->getMessage())) throw $e;
+      if (!preg_match('/unknown column|doesn.t exist|no such table|duplicate column|duplicate key name|duplicate index|already exists/i', $e->getMessage())) throw $e;
     }
   }
   $pdo->exec('CREATE TABLE IF NOT EXISTS botora_schema_versions (id TINYINT UNSIGNED PRIMARY KEY, schema_hash CHAR(64) NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)');

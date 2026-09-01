@@ -138,6 +138,17 @@ CREATE TABLE subscription_config (
 
 INSERT INTO subscription_config (id, price_xof, duration_days, is_active) VALUES (1, 0, 365, 1);
 
+-- Global credit conversion. The token unit remains fixed at 100,000.
+CREATE TABLE credit_config (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  tokens_per_unit INT UNSIGNED NOT NULL DEFAULT 100000,
+  credits_per_unit DECIMAL(20,10) NOT NULL DEFAULT 1,
+  xof_per_unit DECIMAL(14,2) NOT NULL DEFAULT 120,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO credit_config (id, tokens_per_unit, credits_per_unit, xof_per_unit) VALUES (1, 100000, 1, 120);
+
 CREATE TABLE subscription_payments (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,

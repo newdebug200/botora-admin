@@ -164,11 +164,12 @@ function record_credit_adjustment(int $user_id, float $amount, string $reason, ?
     if ($effective == 0.0) throw new InvalidArgumentException('Le retrait dépasse le solde disponible.');
     $creditType = $effective > 0 ? 'add' : 'consume';
     $transactionType = $effective > 0 ? 'admin_grant' : 'admin_debit';
+    $conversion = credit_conversion($db);
     $description = trim($reason) !== '' ? trim($reason) : ($effective > 0 ? 'Crédit ajouté par un administrateur' : 'Crédit retiré par un administrateur');
     $db->prepare('UPDATE users SET credits_balance=?, updated_at=NOW() WHERE id=?')->execute([$newBalance, $user_id]);
     $db->prepare('INSERT INTO credit_logs (user_id,amount,type,reason,admin_id,balance_after) VALUES (?,?,?,?,?,?)')->execute([$user_id, $effective, $creditType, $description, $admin_id, $newBalance]);
     $db->prepare("INSERT INTO payment_transactions (user_id,admin_id,external_id,amount_xof,credits,transaction_type,status,description,metadata,approved_at) VALUES (?,?,NULL,?,?,?,'approved',?,?,NOW())")
-      ->execute([$user_id, $admin_id, round(abs($effective) * 120, 2), abs($effective), $transactionType, $description, json_encode(['source'=>'admin_credit_adjustment','requested_amount'=>$amount,'effective_amount'=>$effective], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+      ->execute([$user_id, $admin_id, round(abs($effective) * $conversion['xof_per_credit'], 2), abs($effective), $transactionType, $description, json_encode(['source'=>'admin_credit_adjustment','requested_amount'=>$amount,'effective_amount'=>$effective,'conversion'=>$conversion], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
     $db->commit();
   } catch (Throwable $e) {
     if ($db->inTransaction()) $db->rollBack();
@@ -178,6 +179,22 @@ function record_credit_adjustment(int $user_id, float $amount, string $reason, ?
 
 function add_credits(int $user_id, int $amount, string $reason, ?int $admin_id = null): void {
   record_credit_adjustment($user_id, (float)$amount, $reason, $admin_id);
+}
+
+function credit_conversion(PDO $db): array {
+  $row = $db->query('SELECT tokens_per_unit,credits_per_unit,xof_per_unit,updated_at FROM credit_config WHERE id=1 LIMIT 1')->fetch() ?: [];
+  $tokens = 100000;
+  $credits = (float)($row['credits_per_unit'] ?? 1);
+  $xof = (float)($row['xof_per_unit'] ?? 120);
+  if (!is_finite($credits) || $credits <= 0) $credits = 1;
+  if (!is_finite($xof) || $xof <= 0) $xof = 120;
+  return [
+    'tokens_per_unit' => $tokens,
+    'credits_per_unit' => $credits,
+    'xof_per_unit' => $xof,
+    'xof_per_credit' => $xof / $credits,
+    'updated_at' => $row['updated_at'] ?? null,
+  ];
 }
 
 function botora_server_now(PDO $db): DateTimeImmutable {

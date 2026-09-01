@@ -61,10 +61,9 @@ if ($search !== '') {
 
 $sql = "
   SELECT pt.*, u.name AS user_name, u.email AS user_email, u.license_key,
-         u.credits_balance, p.name AS plan_name
+         u.credits_balance
   FROM payment_transactions pt
   LEFT JOIN users u ON u.id = pt.user_id
-  LEFT JOIN plans p ON p.id = u.plan_id
 ";
 if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
 $sql .= ' ORDER BY pt.id DESC LIMIT 500';
@@ -106,7 +105,7 @@ $stats = [
   </div>
 </div>
 
-<div class="card">
+<div class="card transactions-card">
   <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
     <h2>Filtrer</h2>
     <form method="GET" class="search-form" style="margin:0;">
@@ -131,7 +130,6 @@ $stats = [
         <tr>
           <th>ID</th>
           <th>Client</th>
-          <th>Plan</th>
           <th>Montant</th>
           <th>Crédits</th>
           <th>Statut</th>
@@ -151,7 +149,6 @@ $stats = [
             <small class="text-muted"><?php echo h($t['user_email'] ?? '—'); ?></small><br>
             <small class="text-muted">Licence: <?= h($t['license_key'] ?? '—') ?></small>
           </td>
-          <td><?= h($t['plan_name'] ?? '—') ?></td>
           <td><?= number_format((float)$t['amount_xof'], 0, ',', ' ') ?> XOF</td>
           <td><?= number_format((float)$t['credits'], 0, ',', ' ') ?></td>
           <td><?= payment_status_badge((string)$t['status']) ?></td>
@@ -170,7 +167,7 @@ $stats = [
         </tr>
         <?php endforeach; ?>
         <?php if (empty($transactions)): ?>
-          <tr><td colspan="11" class="text-center text-muted py-4">Aucune transaction trouvée.</td></tr>
+          <tr><td colspan="10" class="text-center text-muted py-4">Aucune transaction trouvée.</td></tr>
         <?php endif; ?>
       </tbody>
     </table>

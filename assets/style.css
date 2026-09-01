@@ -25,7 +25,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 /* Layout */
 .layout { display: flex; min-height: 100vh; }
 .sidebar { width: 230px; background: var(--sidebar-bg); display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-.content { flex: 1; padding: 24px; min-width: 0; }
+.content { flex: 1 1 auto; width: calc(100% - 230px); padding: 24px; min-width: 0; overflow-x: hidden; }
+.content > * { min-width: 0; max-width: 100%; }
 
 /* Sidebar */
 .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 20px 16px; font-size: 1.1rem; font-weight: 700; color: var(--white); border-bottom: 1px solid rgba(255,255,255,.07); }
@@ -56,7 +57,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .card-header h2 { font-size: .95rem; font-weight: 600; }
 
 /* Stats grid */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 20px; width: 100%; min-width: 0; }
+.stats-grid > * { min-width: 0; }
 .stat-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 16px; display: flex; align-items: center; gap: 14px; }
 .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat-icon.blue { background: #eff6ff; color: #3b82f6; }
@@ -68,14 +70,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .stat-label { font-size: .77rem; color: var(--text-muted); margin-top: 3px; }
 
 /* 2 col layout */
-.row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.row-2col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; width: 100%; min-width: 0; }
+.row-2col > * { min-width: 0; }
 @media (max-width: 900px) { .row-2col { grid-template-columns: 1fr; } }
 
 /* Detail grid */
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 
 /* Table */
-.table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.table { width: 100%; border-collapse: collapse; font-size: .85rem; min-width: 0; }
+.table-responsive { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .table th { text-align: left; padding: 10px 14px; font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid var(--border); }
 .table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .table tbody tr:last-child td { border-bottom: none; }
@@ -83,6 +87,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .table-sm th, .table-sm td { padding: 7px 12px; }
 .actions { white-space: nowrap; }
 .api-log-modal-content { min-height: 120px; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: .8rem; background: var(--bg); padding: 12px; margin: 0; }
+.transactions-card .table-responsive { max-height: calc(100vh - 330px); min-height: 260px; overflow: auto; }
+.transactions-card .table { min-width: 1080px; }
+.transactions-card .table thead th { position: sticky; top: 0; z-index: 2; background: var(--white); box-shadow: 0 1px 0 var(--border); }
 .pagination-bar { display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; margin: 18px 0; }
 .pagination-link { min-width: 30px; padding: 5px 9px; text-align: center; border: 1px solid var(--border); border-radius: 6px; color: var(--text); text-decoration: none; background: var(--white); font-size: .82rem; }
 .pagination-link:hover, .pagination-link.active { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -180,7 +187,7 @@ code { font-family: 'Courier New', monospace; font-size: .85em; }
   .sidebar { width: 60px; }
   .sidebar-brand span, .sidebar-menu a span, .admin-name, .admin-role, .menu-section { display: none; }
   .sidebar-menu a { justify-content: center; padding: 10px; }
-  .content { padding: 14px; }
+  .content { width: calc(100% - 60px); padding: 14px; }
   .form-row { grid-template-columns: 1fr; }
   .search-form .form-control { width: 160px; }
 }

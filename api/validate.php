@@ -37,12 +37,11 @@ if ($existing->fetchColumn()) {
   $db->prepare('INSERT INTO activations (user_id,machine_id,ip_address,botora_version) VALUES (?,?,?,?)')->execute([$user['id'], $machine_id, $ip, $botora_version]);
 }
 
-api_json([
+api_json(array_merge([
   'ok'=>true, 'valid'=>true, 'access_allowed'=>true, 'user_id'=>(int)$user['id'], 'name'=>$user['name'], 'status'=>$user['status'],
   'credits_balance'=>(float)$user['credits_balance'], 'trial_ends_at'=>$user['trial_ends_at'], 'subscription_ends_at'=>$user['subscription_ends_at'],
-  ...$access,
   'plan'=>[
     'name'=>$user['plan_name'], 'slug'=>$user['plan_slug'], 'credits_per_month'=>(int)$user['credits_per_month'],
     'max_profiles'=>(int)$user['max_profiles'], 'campaigns_enabled'=>(bool)$user['campaigns_enabled'], 'ia_enabled'=>(bool)$user['ia_enabled']
   ]
-]);
+], $access));

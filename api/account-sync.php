@@ -28,10 +28,10 @@ if ($user) {
   $stmt = $db->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([(int)$db->lastInsertId()]); $user = $stmt->fetch();
 }
 $access = botora_access($db, $user);
-api_json(['ok'=>true,'confirmed'=>true,'user'=>[
+api_json(['ok'=>true,'confirmed'=>true,'user'=>array_merge([
   'id'=>(int)$user['id'], 'email'=>$user['email'], 'name'=>$user['name'], 'license_key'=>$user['license_key'],
   'status'=>$user['status'], 'credits_balance'=>(float)$user['credits_balance'], 'password_hash'=>$user['password_hash'] ?? null,
   'trial_started_at'=>$user['trial_started_at'] ?? null, 'trial_ends_at'=>$user['trial_ends_at'] ?? null,
   'trial_used'=>(bool)($user['trial_used'] ?? true), 'subscription_started_at'=>$user['subscription_started_at'] ?? null,
-  'subscription_ends_at'=>$user['subscription_ends_at'] ?? null, ...$access
-]]);
+  'subscription_ends_at'=>$user['subscription_ends_at'] ?? null,
+], $access)]);

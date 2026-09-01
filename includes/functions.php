@@ -93,11 +93,10 @@ function status_badge(string $status): string {
 }
 
 function credit_transaction_type_label(string $type): string {
-  return match (strtolower(trim($type))) {
-    'admin_grant' => 'Crédit accordé',
-    'admin_debit' => 'Retrait administrateur',
-    default => 'Paiement réel',
-  };
+  $key = strtolower(trim($type));
+  if ($key === 'admin_grant') return 'Crédit accordé';
+  if ($key === 'admin_debit') return 'Retrait administrateur';
+  return 'Paiement réel';
 }
 
 function credit_transaction_type_badge(string $type): string {

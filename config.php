@@ -12,7 +12,7 @@ function botora_load_env(string $path): void {
   if ($lines === false) return;
   foreach ($lines as $line) {
     $trimmed = trim($line);
-    if ($trimmed === '' || str_starts_with($trimmed, '#') || str_starts_with($trimmed, ';')) continue;
+    if ($trimmed === '' || strpos($trimmed, '#') === 0 || strpos($trimmed, ';') === 0) continue;
 
     if (preg_match('/^export\s+([A-Za-z_][A-Za-z0-9_]*)=(.*)$/', $trimmed, $matches)) {
       [, $key, $rawValue] = $matches;

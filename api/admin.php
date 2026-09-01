@@ -43,14 +43,15 @@ try {
     if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) api_json(['ok'=>false,'error'=>'Nom, email valide et mot de passe de 8 caractères minimum requis.'],400);
     $exists = $db->prepare('SELECT id FROM users WHERE email=? LIMIT 1'); $exists->execute([$email]);
     if ($exists->fetchColumn()) api_json(['ok'=>false,'error'=>'Cet email est déjà utilisé.'],409);
-    $planId = !empty($data['plan_id']) ? (int)$data['plan_id'] : null;
-    $status = in_array(($data['status'] ?? 'active'), ['trial','active','suspended','expired','banned'], true) ? $data['status'] : 'active';
-    $trialDays = max(0, (int)($data['trial_days'] ?? 14));
-    $trialEnd = $trialDays > 0 ? date('Y-m-d', strtotime("+$trialDays days")) : null;
+    $planId = $db->query("SELECT id FROM plans WHERE slug='free' AND is_active=1 LIMIT 1")->fetchColumn() ?: null;
+    $status = 'trial';
+    $now = botora_server_now($db);
+    $trialStart = $now->format('Y-m-d H:i:s');
+    $trialEnd = $now->modify('+14 days')->format('Y-m-d H:i:s');
     $license = generate_license();
     $hash = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $db->prepare('INSERT INTO users (name,email,password_hash,company,phone,plan_id,license_key,status,credits_balance,trial_ends_at,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
-    $stmt->execute([$name,$email,$hash,trim((string)($data['company'] ?? '')),trim((string)($data['phone'] ?? '')) ?: null,$planId,$license,$status,0,$trialEnd,trim((string)($data['notes'] ?? '')) ?: null]);
+    $stmt = $db->prepare('INSERT INTO users (name,email,password_hash,company,phone,plan_id,license_key,status,credits_balance,trial_started_at,trial_ends_at,trial_used,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    $stmt->execute([$name,$email,$hash,trim((string)($data['company'] ?? '')),trim((string)($data['phone'] ?? '')) ?: null,$planId,$license,$status,0,$trialStart,$trialEnd,1,trim((string)($data['notes'] ?? '')) ?: null]);
     $stmt = $db->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([(int)$db->lastInsertId()]);
     api_json(['ok'=>true,'user'=>admin_user_payload($stmt->fetch())],201);
   }
@@ -86,29 +87,6 @@ try {
     if (!is_finite($price) || $price < 0) api_json(['ok'=>false,'error'=>'Prix d’abonnement invalide.'],400);
     $db->prepare('INSERT INTO subscription_config (id,price_xof,duration_days,is_active) VALUES (1,?,?,?) ON DUPLICATE KEY UPDATE price_xof=VALUES(price_xof),duration_days=VALUES(duration_days),is_active=VALUES(is_active)')->execute([$price,$duration,$active]);
     api_json(['ok'=>true,'subscription'=>['price_xof'=>$price,'duration_days'=>$duration,'is_active'=>(bool)$active]]);
-  }
-  if ($resource === 'plans' && $method === 'GET') {
-    $plans = $db->query('SELECT * FROM plans ORDER BY price_xof ASC, price_eur ASC')->fetchAll();
-    foreach ($plans as &$plan) {
-      if ((float)($plan['price_xof'] ?? 0) <= 0 && (float)($plan['price_eur'] ?? 0) > 0) $plan['price_xof'] = round((float)$plan['price_eur'] * 655.957, 2);
-    }
-    unset($plan);
-    api_json(['ok'=>true,'plans'=>$plans]);
-  }
-  if ($resource === 'plans' && $method === 'POST') {
-    $name=trim((string)($data['name']??'')); if ($name==='') api_json(['ok'=>false,'error'=>'Nom du plan requis.'],400);
-    $slug=preg_replace('/[^a-z0-9]+/','-',strtolower($name));
-    $stmt=$db->prepare('INSERT INTO plans (name,slug,credits_per_month,max_profiles,price_xof,is_active) VALUES (?,?,?,?,?,?)');
-    $stmt->execute([$name,$slug,(float)($data['credits_per_month']??$data['credits']??0),(int)($data['max_profiles']??1),max(0,(float)($data['price_xof']??$data['price']??0)),!empty($data['is_active'])?1:0]);
-    api_json(['ok'=>true,'id'=>(int)$db->lastInsertId()]);
-  }
-  if ($resource === 'plans' && $method === 'PATCH') {
-    $id=(int)($data['id']??0); if (!$id) api_json(['ok'=>false,'error'=>'Plan requis.'],400); $fields=[];$params=[];
-    foreach (['name','slug','credits_per_month','max_profiles','price_xof','is_active'] as $field) if (array_key_exists($field,$data)) {$fields[]="$field=?";$params[]=$data[$field];}
-    if (!$fields) api_json(['ok'=>false,'error'=>'Aucune modification.'],400); $params[]=$id; $db->prepare('UPDATE plans SET '.implode(',',$fields).' WHERE id=?')->execute($params); api_json(['ok'=>true]);
-  }
-  if ($resource === 'plans' && $method === 'DELETE') {
-    $id=(int)($_GET['id']??$data['id']??0); if (!$id) api_json(['ok'=>false,'error'=>'Plan requis.'],400); $db->prepare('UPDATE plans SET is_active=0 WHERE id=?')->execute([$id]); api_json(['ok'=>true]);
   }
   if ($resource === 'features' && $method === 'GET') api_json(['ok'=>true,'features'=>$db->query('SELECT * FROM platform_features ORDER BY feature_key')->fetchAll()]);
   if ($resource === 'features' && $method === 'PUT') {

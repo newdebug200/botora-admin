@@ -11,7 +11,6 @@ $user->execute([$id]);
 $user = $user->fetch();
 if (!$user) { http_response_code(404); die('Utilisateur introuvable.'); }
 
-$plans = $db->query('SELECT * FROM plans WHERE is_active=1 ORDER BY price_xof, price_eur')->fetchAll();
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -49,10 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $db->prepare('UPDATE users SET status=?, updated_at=NOW() WHERE id=?')->execute([$s, $id]);
       flash_set('success', 'Statut mis à jour.');
     }
-  } elseif ($action === 'set_plan') {
-    $pid = (int)($_POST['plan_id'] ?? 0);
-    $db->prepare('UPDATE users SET plan_id=?, updated_at=NOW() WHERE id=?')->execute([$pid ?: null, $id]);
-    flash_set('success', 'Plan mis à jour.');
   } elseif ($action === 'extend_trial') {
     $days = (int)($_POST['days'] ?? 7);
     $db->prepare('UPDATE users SET trial_ends_at=DATE_ADD(IFNULL(trial_ends_at, CURDATE()), INTERVAL ? DAY), updated_at=NOW() WHERE id=?')->execute([$days, $id]);
@@ -172,19 +167,13 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
       </div>
       <button type="submit" class="btn btn-outline btn-block">Appliquer</button>
     </form>
-    <form method="POST" class="form-body js-admin-action" data-action-label="Modification enregistrée" style="margin-bottom:12px">
-      <input type="hidden" name="action" value="set_plan">
-      <div class="form-group">
-        <label>Changer de plan</label>
-        <select name="plan_id" class="form-control">
-          <option value="">Aucun plan</option>
-          <?php foreach ($plans as $p): ?>
-          <option value="<?= $p['id'] ?>" <?= $user['plan_id']==$p['id']?'selected':'' ?>><?= h($p['name']) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-outline btn-block">Changer</button>
-    </form>
+    <div class="d-flex gap-2 mb-3">
+      <?php if ($user['status'] !== 'suspended'): ?>
+      <form method="POST" class="flex-fill" onsubmit="return confirm('Suspendre ce compte ?')"><input type="hidden" name="action" value="set_status"><input type="hidden" name="status" value="suspended"><button type="submit" class="btn btn-danger w-100">Suspendre le compte</button></form>
+      <?php else: ?>
+      <form method="POST" class="flex-fill"><input type="hidden" name="action" value="set_status"><input type="hidden" name="status" value="active"><button type="submit" class="btn btn-success w-100">Réactiver le compte</button></form>
+      <?php endif; ?>
+    </div>
     <form method="POST" class="form-body">
       <input type="hidden" name="action" value="extend_trial">
       <div class="form-group">

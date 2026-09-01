@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $signedAmount = $direction === 'remove' ? -abs($amount) : abs($amount);
     $reason = trim($_POST['reason'] ?? ($direction === 'remove' ? 'Retrait manuel admin' : 'Ajout manuel admin'));
     if ($amount > 0) {
-      add_credits($id, $signedAmount, $reason, $_SESSION['admin_id']);
+      record_credit_adjustment($id, $signedAmount, $reason, (int)$_SESSION['admin_id']);
       flash_set('success', $direction === 'remove' ? "{$amount} crédits retirés." : "{$amount} crédits ajoutés.");
     }
   } elseif ($action === 'set_status') {
@@ -83,6 +83,10 @@ $activations = $activations->fetchAll();
 $activities = $db->prepare('SELECT event_type,tokens_used,credits_used,payload,created_at FROM activity_logs WHERE user_id=? ORDER BY created_at DESC LIMIT 100');
 $activities->execute([$id]);
 $activities = $activities->fetchAll();
+
+$user_transactions = $db->prepare('SELECT pt.*, a.name AS admin_name FROM payment_transactions pt LEFT JOIN admins a ON a.id=pt.admin_id WHERE pt.user_id=? ORDER BY pt.created_at DESC LIMIT 100');
+$user_transactions->execute([$id]);
+$user_transactions = $user_transactions->fetchAll();
 
 $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_ends_at']) - time()) / 86400) : null;
 ?>
@@ -228,6 +232,27 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     </table>
   </div>
   <?php endif; ?>
+
+  <!-- User transactions -->
+  <div class="card" style="grid-column: 1/-1">
+    <div class="card-header"><h2>Transactions du compte</h2><span class="text-muted small"><?= count($user_transactions) ?> opérations récentes</span></div>
+    <div class="table-responsive"><table class="table table-sm align-middle">
+      <thead><tr><th>Date</th><th>Type</th><th>Montant indicatif</th><th>Crédits</th><th>Statut</th><th>Motif / opérateur</th></tr></thead>
+      <tbody>
+      <?php foreach ($user_transactions as $transaction): $transactionType = (string)($transaction['transaction_type'] ?? 'payment'); ?>
+        <tr>
+          <td><?= format_datetime($transaction['created_at']) ?></td>
+          <td><?= credit_transaction_type_badge($transactionType) ?></td>
+          <td><?= number_format((float)$transaction['amount_xof'], 0, ',', ' ') ?> XOF</td>
+          <td class="<?= $transactionType === 'admin_debit' ? 'text-danger' : 'text-success' ?>"><?= $transactionType === 'admin_debit' ? '−' : '+' ?><?= number_format((float)$transaction['credits'], 3, ',', ' ') ?></td>
+          <td><?= $transactionType === 'payment' ? payment_status_badge((string)$transaction['status']) : '<span class="badge badge-success">Approuvée automatiquement</span>' ?></td>
+          <td><?= h((string)($transaction['description'] ?? '—')) ?><?php if (!empty($transaction['admin_name'])): ?><br><small class="text-muted">Par <?= h($transaction['admin_name']) ?></small><?php endif; ?></td>
+        </tr>
+      <?php endforeach; ?>
+      <?php if (!$user_transactions): ?><tr><td colspan="6" class="text-center text-muted">Aucune transaction enregistrée.</td></tr><?php endif; ?>
+      </tbody>
+    </table></div>
+  </div>
 
   <!-- Central activity history -->
   <div class="card" style="grid-column: 1/-1">

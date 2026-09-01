@@ -92,6 +92,25 @@ function status_badge(string $status): string {
   return "<span class=\"badge {$cls}\">{$label}</span>";
 }
 
+function credit_transaction_type_label(string $type): string {
+  return match (strtolower(trim($type))) {
+    'admin_grant' => 'Crédit accordé',
+    'admin_debit' => 'Retrait administrateur',
+    default => 'Paiement réel',
+  };
+}
+
+function credit_transaction_type_badge(string $type): string {
+  $key = strtolower(trim($type));
+  $map = [
+    'payment' => ['badge-primary', 'Paiement réel'],
+    'admin_grant' => ['badge-success', 'Crédit accordé'],
+    'admin_debit' => ['badge-warning', 'Retrait admin'],
+  ];
+  [$class, $label] = $map[$key] ?? ['badge-secondary', ucfirst(str_replace('_', ' ', $key))];
+  return '<span class="badge ' . $class . '">' . h($label) . '</span>';
+}
+
 function payment_status_badge(string $status): string {
   $labelMap = [
     'pending' => 'En attente',
@@ -130,22 +149,35 @@ function format_datetime(?string $d): string {
   return date('d/m/Y H:i', strtotime($d));
 }
 
-function add_credits(int $user_id, int $amount, string $reason, ?int $admin_id = null): void {
+function record_credit_adjustment(int $user_id, float $amount, string $reason, ?int $admin_id = null): void {
+  if (!is_finite($amount) || $amount == 0.0) throw new InvalidArgumentException('Le montant doit être différent de zéro.');
   $db = db();
   $db->beginTransaction();
   try {
-    $db->prepare('UPDATE users SET credits_balance = credits_balance + ?, updated_at = NOW() WHERE id = ?')
-       ->execute([$amount, $user_id]);
-    $row = $db->prepare('SELECT credits_balance FROM users WHERE id = ?');
-    $row->execute([$user_id]);
-    $balance = (int)$row->fetchColumn();
-    $db->prepare('INSERT INTO credit_logs (user_id, amount, type, reason, admin_id, balance_after) VALUES (?, ?, ?, ?, ?, ?)')
-       ->execute([$user_id, $amount, 'add', $reason, $admin_id, $balance]);
+    $lock = $db->prepare('SELECT credits_balance FROM users WHERE id=? FOR UPDATE');
+    $lock->execute([$user_id]);
+    $current = $lock->fetchColumn();
+    if ($current === false) throw new RuntimeException('Utilisateur introuvable.');
+    if ($amount < 0 && abs($amount) > (float)$current) throw new InvalidArgumentException('Le retrait dépasse le solde disponible.');
+    $newBalance = (float)$current + $amount;
+    $effective = $newBalance - (float)$current;
+    if ($effective == 0.0) throw new InvalidArgumentException('Le retrait dépasse le solde disponible.');
+    $creditType = $effective > 0 ? 'add' : 'consume';
+    $transactionType = $effective > 0 ? 'admin_grant' : 'admin_debit';
+    $description = trim($reason) !== '' ? trim($reason) : ($effective > 0 ? 'Crédit ajouté par un administrateur' : 'Crédit retiré par un administrateur');
+    $db->prepare('UPDATE users SET credits_balance=?, updated_at=NOW() WHERE id=?')->execute([$newBalance, $user_id]);
+    $db->prepare('INSERT INTO credit_logs (user_id,amount,type,reason,admin_id,balance_after) VALUES (?,?,?,?,?,?)')->execute([$user_id, $effective, $creditType, $description, $admin_id, $newBalance]);
+    $db->prepare("INSERT INTO payment_transactions (user_id,admin_id,external_id,amount_xof,credits,transaction_type,status,description,metadata,approved_at) VALUES (?,?,NULL,?,?,?,'approved',?,?,NOW())")
+      ->execute([$user_id, $admin_id, round(abs($effective) * 120, 2), abs($effective), $transactionType, $description, json_encode(['source'=>'admin_credit_adjustment','requested_amount'=>$amount,'effective_amount'=>$effective], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
     $db->commit();
-  } catch (Exception $e) {
-    $db->rollBack();
+  } catch (Throwable $e) {
+    if ($db->inTransaction()) $db->rollBack();
     throw $e;
   }
+}
+
+function add_credits(int $user_id, int $amount, string $reason, ?int $admin_id = null): void {
+  record_credit_adjustment($user_id, (float)$amount, $reason, $admin_id);
 }
 
 function botora_server_now(PDO $db): DateTimeImmutable {

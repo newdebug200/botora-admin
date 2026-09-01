@@ -9,10 +9,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $userId=(int)($_POST['user_id']??0); $amount=(float)($_POST['amount']??0); $reason=trim((string)($_POST['reason']??'Ajustement admin')) ?: 'Ajustement admin';
   if ($userId && is_finite($amount) && $amount !== 0.0) {
     try {
-      $db->beginTransaction(); $lock=$db->prepare('SELECT credits_balance FROM users WHERE id=? FOR UPDATE'); $lock->execute([$userId]); $balance=$lock->fetchColumn();
-      if ($balance === false) throw new RuntimeException('Utilisateur introuvable.');
-      $new=max(0,(float)$balance+$amount); $db->prepare('UPDATE users SET credits_balance=?,updated_at=NOW() WHERE id=?')->execute([$new,$userId]); $db->prepare('INSERT INTO credit_logs (user_id,amount,type,reason,admin_id,balance_after) VALUES (?,?,?,?,?,?)')->execute([$userId,$amount,$amount>0?'add':'consume',$reason,$_SESSION['admin_id'],$new]); $db->commit(); flash_set('success','Solde mis à jour : '.number_format($new,3,',',' ').' crédits.');
-    } catch (Throwable $e) { if($db->inTransaction())$db->rollBack(); flash_set('danger','Impossible de modifier le solde.'); }
+      record_credit_adjustment($userId, $amount, $reason, (int)$_SESSION['admin_id']);
+      $fresh = $db->prepare('SELECT credits_balance FROM users WHERE id=?'); $fresh->execute([$userId]);
+      flash_set('success','Solde mis à jour : '.number_format((float)$fresh->fetchColumn(),3,',',' ').' crédits.');
+    } catch (Throwable $e) { flash_set('danger', $e instanceof InvalidArgumentException ? $e->getMessage() : 'Impossible de modifier le solde.'); }
   } else flash_set('danger','Sélectionnez un utilisateur et saisissez un montant différent de zéro.');
   header('Location: '.APP_URL.'/admin/credits.php'); exit;
 }

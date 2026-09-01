@@ -110,9 +110,11 @@ CREATE INDEX idx_usage_logs_user ON usage_logs(user_id, logged_at);
 CREATE TABLE payment_transactions (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
+  admin_id INT UNSIGNED NULL,
   external_id VARCHAR(100) NULL UNIQUE,
   amount_xof DECIMAL(14,2) NOT NULL,
   credits DECIMAL(20,10) NOT NULL,
+  transaction_type VARCHAR(30) NOT NULL DEFAULT 'payment',
   status VARCHAR(40) NOT NULL DEFAULT 'pending',
   description VARCHAR(255) NULL,
   metadata JSON NULL,
@@ -120,8 +122,10 @@ CREATE TABLE payment_transactions (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL,
   INDEX idx_payment_user (user_id, created_at),
-  INDEX idx_payment_status (status)
+  INDEX idx_payment_status (status),
+  INDEX idx_payment_type (transaction_type, status)
 );
 
 CREATE TABLE subscription_config (

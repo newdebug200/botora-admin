@@ -84,8 +84,11 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
     "UPDATE users SET plan_id = (SELECT id FROM plans WHERE slug='free' AND is_active=1 LIMIT 1) WHERE plan_id IS NULL",
     'ALTER TABLE credit_logs MODIFY amount DECIMAL(20,10) NOT NULL',
     'ALTER TABLE credit_logs MODIFY balance_after DECIMAL(20,10) NOT NULL',
-    'ALTER TABLE usage_logs MODIFY credits_used DECIMAL(20,10) DEFAULT 0'
-    , 'ALTER TABLE api_logs ADD COLUMN error_message LONGTEXT NULL AFTER response'
+    'ALTER TABLE usage_logs MODIFY credits_used DECIMAL(20,10) DEFAULT 0',
+    "ALTER TABLE payment_transactions ADD COLUMN admin_id INT UNSIGNED NULL AFTER user_id",
+    "ALTER TABLE payment_transactions ADD COLUMN transaction_type VARCHAR(30) NOT NULL DEFAULT 'payment' AFTER credits",
+    'ALTER TABLE payment_transactions ADD INDEX idx_payment_type (transaction_type, status)',
+    'ALTER TABLE api_logs ADD COLUMN error_message LONGTEXT NULL AFTER response'
   ] as $migration) {
     try { $pdo->exec($migration); } catch (PDOException $e) {
       if (!preg_match('/unknown column|doesn.t exist|no such table|duplicate column|already exists/i', $e->getMessage())) throw $e;

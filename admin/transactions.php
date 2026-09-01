@@ -15,6 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $transactionId = (int)($_POST['transaction_id'] ?? 0);
   try {
     if (!$transactionId) throw new InvalidArgumentException('Transaction invalide.');
+    $kindStmt = $db->prepare('SELECT transaction_type FROM payment_transactions WHERE id=?');
+    $kindStmt->execute([$transactionId]);
+    $transactionType = (string)($kindStmt->fetchColumn() ?: '');
+    if ($transactionType !== 'payment') throw new InvalidArgumentException('Les ajustements administratifs sont approuvés automatiquement et ne peuvent pas être modifiés ici.');
     if ($action === 'update_transaction') {
       $status = strtolower(trim((string)($_POST['status'] ?? '')));
       $amount = (float)($_POST['amount_xof'] ?? 0);
@@ -61,9 +65,10 @@ if ($search !== '') {
 
 $sql = "
   SELECT pt.*, u.name AS user_name, u.email AS user_email, u.license_key,
-         u.credits_balance
+         u.credits_balance, a.name AS admin_name
   FROM payment_transactions pt
   LEFT JOIN users u ON u.id = pt.user_id
+  LEFT JOIN admins a ON a.id = pt.admin_id
 ";
 if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
 $sql .= ' ORDER BY pt.id DESC LIMIT 500';
@@ -77,6 +82,9 @@ $stats = [
   'approved' => (int)$db->query("SELECT COUNT(*) FROM payment_transactions WHERE status='approved'")->fetchColumn(),
   'pending' => (int)$db->query("SELECT COUNT(*) FROM payment_transactions WHERE status='pending'")->fetchColumn(),
   'failed' => (int)$db->query("SELECT COUNT(*) FROM payment_transactions WHERE status IN ('failed','creation_failed')")->fetchColumn(),
+  'paid_credits' => (float)$db->query("SELECT COALESCE(SUM(credits),0) FROM payment_transactions WHERE transaction_type='payment' AND status='approved'")->fetchColumn(),
+  'admin_granted' => (float)$db->query("SELECT COALESCE(SUM(credits),0) FROM payment_transactions WHERE transaction_type='admin_grant' AND status='approved'")->fetchColumn(),
+  'admin_removed' => (float)$db->query("SELECT COALESCE(SUM(credits),0) FROM payment_transactions WHERE transaction_type='admin_debit' AND status='approved'")->fetchColumn(),
 ];
 ?>
 <div class="page-header">
@@ -105,6 +113,13 @@ $stats = [
   </div>
 </div>
 
+<div class="stats-grid transaction-credit-summary">
+  <div class="stat-card"><div class="stat-icon blue"><span style="font-weight:700">₡</span></div><div class="stat-body"><div class="stat-value"><?= number_format($stats['paid_credits'], 3, ',', ' ') ?></div><div class="stat-label">Crédits payés réellement</div></div></div>
+  <div class="stat-card"><div class="stat-icon green"><span style="font-weight:700">+</span></div><div class="stat-body"><div class="stat-value"><?= number_format($stats['admin_granted'], 3, ',', ' ') ?></div><div class="stat-label">Crédits accordés par admin</div></div></div>
+  <div class="stat-card"><div class="stat-icon orange"><span style="font-weight:700">−</span></div><div class="stat-body"><div class="stat-value"><?= number_format($stats['admin_removed'], 3, ',', ' ') ?></div><div class="stat-label">Crédits retirés par admin</div></div></div>
+  <div class="stat-card"><div class="stat-icon purple"><span style="font-weight:700">=</span></div><div class="stat-body"><div class="stat-value"><?= number_format($stats['paid_credits'] + $stats['admin_granted'] - $stats['admin_removed'], 3, ',', ' ') ?></div><div class="stat-label">Crédits nets distribués</div></div></div>
+</div>
+
 <div class="card transactions-card">
   <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
     <h2>Filtrer</h2>
@@ -130,11 +145,13 @@ $stats = [
         <tr>
           <th>ID</th>
           <th>Client</th>
+          <th>Type</th>
           <th>Montant</th>
           <th>Crédits</th>
           <th>Statut</th>
           <th>External ID</th>
           <th>Description</th>
+          <th>Opérateur</th>
           <th>Créée le</th>
           <th>Approuvée le</th>
           <th>Actions</th>
@@ -149,25 +166,25 @@ $stats = [
             <small class="text-muted"><?php echo h($t['user_email'] ?? '—'); ?></small><br>
             <small class="text-muted">Licence: <?= h($t['license_key'] ?? '—') ?></small>
           </td>
+          <td><?= credit_transaction_type_badge((string)($t['transaction_type'] ?? 'payment')) ?></td>
           <td><?= number_format((float)$t['amount_xof'], 0, ',', ' ') ?> XOF</td>
-          <td><?= number_format((float)$t['credits'], 0, ',', ' ') ?></td>
-          <td><?= payment_status_badge((string)$t['status']) ?></td>
+          <td class="<?= ($t['transaction_type'] ?? 'payment') === 'admin_debit' ? 'text-danger' : 'text-success' ?>"><?= ($t['transaction_type'] ?? 'payment') === 'admin_debit' ? '−' : '+' ?><?= number_format((float)$t['credits'], 3, ',', ' ') ?></td>
+          <td><?= ($t['transaction_type'] ?? 'payment') === 'payment' ? payment_status_badge((string)$t['status']) : '<span class="badge badge-success">Approuvée automatiquement</span>' ?></td>
           <td><code><?= h((string)($t['external_id'] ?? '—')) ?></code></td>
           <td><?= h((string)($t['description'] ?? '—')) ?></td>
+          <td><?= h((string)($t['admin_name'] ?? 'Système')) ?></td>
           <td><?= format_datetime($t['created_at']) ?></td>
           <td><?= $t['approved_at'] ? format_datetime($t['approved_at']) : '—' ?></td>
-          <td class="actions">
+          <td class="actions"><?php if (($t['transaction_type'] ?? 'payment') === 'payment'): ?>
             <button type="button" class="btn btn-sm btn-outline transaction-edit-trigger" data-bs-toggle="modal" data-bs-target="#transaction-edit-modal" data-id="<?= (int)$t['id'] ?>" data-status="<?= h($t['status']) ?>" data-amount="<?= h((string)$t['amount_xof']) ?>" data-credits="<?= h((string)$t['credits']) ?>" data-external-id="<?= h((string)($t['external_id'] ?? '')) ?>" data-description="<?= h((string)($t['description'] ?? '')) ?>">Modifier</button>
             <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer définitivement la transaction #<?= (int)$t['id'] ?> ? Cette action est irréversible.');">
-              <input type="hidden" name="action" value="delete_transaction">
-              <input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>">
-              <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+              <input type="hidden" name="action" value="delete_transaction"><input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>"><button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
             </form>
-          </td>
+          <?php else: ?><span class="text-muted">Journal verrouillé</span><?php endif; ?></td>
         </tr>
         <?php endforeach; ?>
         <?php if (empty($transactions)): ?>
-          <tr><td colspan="10" class="text-center text-muted py-4">Aucune transaction trouvée.</td></tr>
+          <tr><td colspan="12" class="text-center text-muted py-4">Aucune transaction trouvée.</td></tr>
         <?php endif; ?>
       </tbody>
     </table>

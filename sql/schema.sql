@@ -49,6 +49,7 @@ CREATE TABLE users (
   plan_id INT UNSIGNED NULL,
   license_key CHAR(36) NOT NULL UNIQUE,
   status ENUM('trial','active','suspended','expired','banned') DEFAULT 'trial',
+  control_center_access TINYINT(1) NULL DEFAULT NULL,
   credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0,
   trial_started_at DATETIME NULL,
   trial_ends_at DATETIME NULL,

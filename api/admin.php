@@ -7,7 +7,7 @@ $resource = strtolower(trim((string)($_GET['resource'] ?? 'overview')));
 $data = payment_request_json();
 
 function admin_user_payload(array $u): array {
-  return ['id'=>(int)$u['id'],'name'=>$u['name'],'email'=>$u['email'],'company'=>$u['company'],'phone'=>$u['phone'],'license_key'=>$u['license_key'],'status'=>$u['status'],'credits_balance'=>(float)$u['credits_balance'],'created_at'=>$u['created_at'],'plan_id'=>$u['plan_id'] ? (int)$u['plan_id'] : null,'trial_started_at'=>$u['trial_started_at'] ?? null,'trial_ends_at'=>$u['trial_ends_at'] ?? null,'trial_used'=>(bool)($u['trial_used'] ?? true),'subscription_started_at'=>$u['subscription_started_at'] ?? null,'subscription_ends_at'=>$u['subscription_ends_at'] ?? null];
+  return ['id'=>(int)$u['id'],'name'=>$u['name'],'email'=>$u['email'],'company'=>$u['company'],'phone'=>$u['phone'],'license_key'=>$u['license_key'],'status'=>$u['status'],'credits_balance'=>(float)$u['credits_balance'],'created_at'=>$u['created_at'],'plan_id'=>$u['plan_id'] ? (int)$u['plan_id'] : null,'trial_started_at'=>$u['trial_started_at'] ?? null,'trial_ends_at'=>$u['trial_ends_at'] ?? null,'trial_used'=>(bool)($u['trial_used'] ?? true),'subscription_started_at'=>$u['subscription_started_at'] ?? null,'subscription_ends_at'=>$u['subscription_ends_at'] ?? null,'control_center_access'=>array_key_exists('control_center_access', $u) && $u['control_center_access'] !== null ? (bool)$u['control_center_access'] : null];
 }
 function admin_read_body(): array { return $GLOBALS['data']; }
 
@@ -59,6 +59,7 @@ try {
     $user = payment_user($data); if (!$user) api_json(['ok'=>false,'error'=>'Utilisateur introuvable.'],404);
     $fields=[]; $params=[];
     foreach (['name','company','phone','status'] as $field) if (array_key_exists($field,$data)) { $fields[]="$field=?"; $params[] = trim((string)$data[$field]); }
+    if (array_key_exists('control_center_access', $data)) { $fields[]='control_center_access=?'; $params[] = filter_var($data['control_center_access'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0; }
     if (!$fields) api_json(['ok'=>false,'error'=>'Aucune modification.'],400);
     $params[]=(int)$user['id']; $db->prepare('UPDATE users SET '.implode(',', $fields).', updated_at=NOW() WHERE id=?')->execute($params);
     $stmt=$db->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([$user['id']]); api_json(['ok'=>true,'user'=>admin_user_payload($stmt->fetch())]);

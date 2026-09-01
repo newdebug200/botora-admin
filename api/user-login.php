@@ -17,7 +17,7 @@ if (!$access['access_allowed']) {
   if (in_array($access['access_type'], ['suspended', 'banned'], true)) api_json(['ok'=>false,'access_allowed'=>false,'access_type'=>$access['access_type'],'error'=>$message], 403);
   api_json(['ok'=>true,'requires_subscription'=>true,'access_allowed'=>false,'access_type'=>$access['access_type'],'message'=>$message,'user'=>[
     'id'=>(int)$user['id'], 'name'=>$user['name'], 'email'=>$user['email'], 'password_hash'=>$user['password_hash'],
-    'license_key'=>$user['license_key'], 'status'=>'expired', 'credits_balance'=>(float)$user['credits_balance'],
+    'license_key'=>$user['license_key'], 'status'=>'expired', 'control_center_access'=>$user['control_center_access'] === null ? null : (bool)$user['control_center_access'], 'credits_balance'=>(float)$user['credits_balance'],
     'plan_id'=>$user['plan_id'] ? (int)$user['plan_id'] : null, ...$access
   ]]);
 }
@@ -25,7 +25,7 @@ if ($access['access_type'] === 'subscription') $user['status'] = 'active';
 api_json(['ok'=>true,'user'=>[
   'id'=>(int)$user['id'], 'name'=>$user['name'], 'email'=>$user['email'],
   'password_hash'=>$user['password_hash'], 'license_key'=>$user['license_key'],
-  'status'=>$user['status'], 'credits_balance'=>(float)$user['credits_balance'],
+  'status'=>$user['status'], 'control_center_access'=>$user['control_center_access'] === null ? null : (bool)$user['control_center_access'], 'credits_balance'=>(float)$user['credits_balance'],
   'plan_id'=>$user['plan_id'] ? (int)$user['plan_id'] : null,
   ...$access
 ]]);

@@ -35,7 +35,7 @@ $users = $stmt->fetchAll();
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover align-middle" id="users-table">
-      <thead><tr><th>Client</th><th>Statut</th><th>Crédits</th><th>Essai expire</th><th>Abonnement annuel</th><th>Inscrit le</th><th>Options</th></tr></thead>
+      <thead><tr><th>Client</th><th>Statut</th><th>Centre de contrôle</th><th>Crédits</th><th>Essai expire</th><th>Abonnement annuel</th><th>Inscrit le</th><th>Options</th></tr></thead>
       <tbody>
       <?php foreach ($users as $u):
         $searchText = strtolower(implode(' ', array_filter([$u['name'],$u['email'],$u['company'],$u['phone'],$u['license_key'],$u['status']])));
@@ -43,6 +43,7 @@ $users = $stmt->fetchAll();
         <tr class="user-row" data-user-search="<?= h($searchText) ?>">
           <td><strong><?= h($u['name']) ?></strong><br><small class="text-muted"><?= h($u['email']) ?></small><?php if (!empty($u['company'])): ?><br><small class="text-muted"><?= h($u['company']) ?></small><?php endif; ?></td>
           <td><?= status_badge($u['status']) ?></td>
+          <td><span class="badge <?= $u['control_center_access'] === null ? 'badge-secondary' : ($u['control_center_access'] ? 'badge-success' : 'badge-danger') ?>"><?= $u['control_center_access'] === null ? 'Hérité' : ($u['control_center_access'] ? 'Autorisé' : 'Refusé') ?></span></td>
           <td><span class="credits-display <?= $u['credits_balance'] <= 0 ? 'zero' : ($u['credits_balance'] < 20 ? 'low' : '') ?>"><?= number_format($u['credits_balance']) ?></span></td>
           <td><?php if ($u['trial_ends_at']): $days=(int)ceil((strtotime($u['trial_ends_at'])-time())/86400); ?><span class="<?= $days<=3?'text-danger':($days<=7?'text-warning':'') ?>"><?= format_date($u['trial_ends_at']) ?><?php if ($days<=7 && $days>=0): ?> (<?= $days ?>j)<?php endif; ?><?php if ($days<0): ?> <span class="badge badge-danger">Expiré</span><?php endif; ?></span><?php else: ?>—<?php endif; ?></td>
           <td><?php if (!empty($u['subscription_ends_at'])): $subDays=(int)ceil((strtotime($u['subscription_ends_at'])-time())/86400); ?><span class="<?= $subDays<0?'text-danger':'' ?>"><?= format_date($u['subscription_ends_at']) ?><?php if ($subDays<0): ?> <span class="badge badge-danger">Expiré</span><?php endif; ?></span><?php else: ?>—<?php endif; ?></td>
@@ -50,7 +51,7 @@ $users = $stmt->fetchAll();
           <td><a href="<?= APP_URL ?>/admin/user-detail.php?id=<?= (int)$u['id'] ?>" class="btn btn-sm btn-primary">Options</a></td>
         </tr>
       <?php endforeach; ?>
-      <tr id="no-user-result" <?= $users ? 'style="display:none"' : '' ?>><td colspan="7" class="text-center text-muted py-4">Aucun utilisateur trouvé.</td></tr>
+      <tr id="no-user-result" <?= $users ? 'style="display:none"' : '' ?>><td colspan="8" class="text-center text-muted py-4">Aucun utilisateur trouvé.</td></tr>
       </tbody>
     </table>
   </div>

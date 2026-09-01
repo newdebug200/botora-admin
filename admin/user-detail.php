@@ -42,6 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       record_credit_adjustment($id, $signedAmount, $reason, (int)$_SESSION['admin_id']);
       flash_set('success', $direction === 'remove' ? "{$amount} crédits retirés." : "{$amount} crédits ajoutés.");
     }
+  } elseif ($action === 'set_control_center_access') {
+    $enabled = filter_var($_POST['control_center_access'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+    $db->prepare('UPDATE users SET control_center_access=?, updated_at=NOW() WHERE id=?')->execute([$enabled, $id]);
+    flash_set('success', $enabled ? 'Accès au Centre de contrôle accordé.' : 'Accès au Centre de contrôle retiré.');
   } elseif ($action === 'set_status') {
     $s = $_POST['status'] ?? '';
     if (in_array($s, ['trial','active','suspended','expired','banned'])) {
@@ -105,6 +109,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     <div class="card-header"><h2>Informations</h2></div>
     <div class="info-list">
       <div class="info-row"><span>Accès</span><strong><?= h(ucfirst((string)$user['status'])) ?></strong></div>
+      <div class="info-row"><span>Centre de contrôle</span><strong><?= $user['control_center_access'] === null ? 'Héritage du rôle local' : ($user['control_center_access'] ? 'Autorisé' : 'Refusé') ?></strong></div>
       <div class="info-row"><span>Crédits</span><strong class="credits-display <?= $user['credits_balance']<=0?'zero':($user['credits_balance']<20?'low':'') ?>"><?= number_format($user['credits_balance']) ?></strong></div>
       <div class="info-row"><span>Essai expire</span><strong><?= $user['trial_ends_at'] ? format_date($user['trial_ends_at']).' ('.($trial_days_left >= 0 ? $trial_days_left.'j' : 'Expiré').')' : '—' ?></strong></div>
       <div class="info-row"><span>Abonnement annuel</span><strong><?= !empty($user['subscription_ends_at']) ? format_date($user['subscription_ends_at']) : 'Aucun' ?></strong></div>
@@ -154,6 +159,16 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
       <div class="form-group"><label>Montant</label><input type="number" name="amount" class="form-control" min="1" placeholder="Ex: 50" required></div>
       <div class="form-group"><label>Motif</label><input type="text" name="reason" class="form-control" value="Retrait manuel admin"></div>
       <button type="submit" class="btn btn-outline btn-block">Retirer les crédits</button>
+    </form>
+  </div>
+
+  <!-- Control center permission -->
+  <div class="card">
+    <div class="card-header"><h2>Centre de contrôle</h2></div>
+    <form method="POST" class="form-body js-admin-action">
+      <input type="hidden" name="action" value="set_control_center_access">
+      <div class="form-group"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" name="control_center_access" value="1" <?= $user['control_center_access'] ? 'checked' : '' ?>> Autoriser l’accès à l’administration de la plateforme</label><small class="text-muted">Ce droit est vérifié par WhatsApp Cloud Platform auprès de Botora Admin. Décoché, l’utilisateur ne pourra pas ouvrir le Centre de contrôle.</small></div>
+      <button type="submit" class="btn btn-primary btn-block">Enregistrer le droit</button>
     </form>
   </div>
 

@@ -91,6 +91,7 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
     'ALTER TABLE payment_transactions ADD INDEX idx_payment_type (transaction_type, status)',
     'CREATE TABLE IF NOT EXISTS credit_config (id TINYINT UNSIGNED PRIMARY KEY, tokens_per_unit INT UNSIGNED NOT NULL DEFAULT 100000, credits_per_unit DECIMAL(20,10) NOT NULL DEFAULT 1, xof_per_unit DECIMAL(14,2) NOT NULL DEFAULT 120, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)',
     "INSERT IGNORE INTO credit_config (id,tokens_per_unit,credits_per_unit,xof_per_unit) VALUES (1,100000,1,120)",
+    "CREATE TABLE IF NOT EXISTS keyword_auto_replies (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED NOT NULL, profile_key VARCHAR(191) NOT NULL DEFAULT 'default', keyword VARCHAR(255) NOT NULL, keyword_normalized VARCHAR(255) NOT NULL, response_text TEXT NOT NULL, is_active TINYINT(1) NOT NULL DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, UNIQUE KEY uq_keyword_reply_user_profile_keyword (user_id, profile_key, keyword_normalized), INDEX idx_keyword_reply_user_profile_active (user_id, profile_key, is_active))",
     'ALTER TABLE api_logs ADD COLUMN error_message LONGTEXT NULL AFTER response'
   ] as $migration) {
     try { $pdo->exec($migration); } catch (PDOException $e) {

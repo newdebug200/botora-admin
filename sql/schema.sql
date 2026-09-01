@@ -177,6 +177,22 @@ CREATE TABLE subscription_webhook_events (
   FOREIGN KEY (subscription_payment_id) REFERENCES subscription_payments(id) ON DELETE SET NULL
 );
 
+-- User-owned automatic replies triggered by an exact, case-insensitive keyword.
+CREATE TABLE keyword_auto_replies (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  profile_key VARCHAR(191) NOT NULL DEFAULT 'default',
+  keyword VARCHAR(255) NOT NULL,
+  keyword_normalized VARCHAR(255) NOT NULL,
+  response_text TEXT NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_keyword_reply_user_profile_keyword (user_id, profile_key, keyword_normalized),
+  INDEX idx_keyword_reply_user_profile_active (user_id, profile_key, is_active)
+);
+
 CREATE TABLE api_key_history (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   account_email VARCHAR(191) NOT NULL,

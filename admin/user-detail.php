@@ -6,7 +6,7 @@ $db  = db();
 $id  = (int)($_GET['id'] ?? 0);
 if (!$id) { header('Location: ' . APP_URL . '/admin/users.php'); exit; }
 
-$user = $db->prepare('SELECT u.*, p.name as plan_name, p.slug as plan_slug FROM users u LEFT JOIN plans p ON p.id=u.plan_id WHERE u.id=?');
+$user = $db->prepare('SELECT u.* FROM users u WHERE u.id=?');
 $user->execute([$id]);
 $user = $user->fetch();
 if (!$user) { http_response_code(404); die('Utilisateur introuvable.'); }
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Reload fresh
-$user = $db->prepare('SELECT u.*, p.name as plan_name FROM users u LEFT JOIN plans p ON p.id=u.plan_id WHERE u.id=?');
+$user = $db->prepare('SELECT u.* FROM users u WHERE u.id=?');
 $user->execute([$id]);
 $user = $user->fetch();
 
@@ -100,9 +100,10 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <div class="card">
     <div class="card-header"><h2>Informations</h2></div>
     <div class="info-list">
-      <div class="info-row"><span>Plan</span><strong><?= h($user['plan_name'] ?? 'Aucun') ?></strong></div>
+      <div class="info-row"><span>Accès</span><strong><?= h(ucfirst((string)$user['status'])) ?></strong></div>
       <div class="info-row"><span>Crédits</span><strong class="credits-display <?= $user['credits_balance']<=0?'zero':($user['credits_balance']<20?'low':'') ?>"><?= number_format($user['credits_balance']) ?></strong></div>
       <div class="info-row"><span>Essai expire</span><strong><?= $user['trial_ends_at'] ? format_date($user['trial_ends_at']).' ('.($trial_days_left >= 0 ? $trial_days_left.'j' : 'Expiré').')' : '—' ?></strong></div>
+      <div class="info-row"><span>Abonnement annuel</span><strong><?= !empty($user['subscription_ends_at']) ? format_date($user['subscription_ends_at']) : 'Aucun' ?></strong></div>
       <div class="info-row"><span>Inscrit le</span><strong><?= format_datetime($user['created_at']) ?></strong></div>
       <div class="info-row"><span>Mis à jour</span><strong><?= format_datetime($user['updated_at']) ?></strong></div>
     </div>
@@ -152,9 +153,9 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     </form>
   </div>
 
-  <!-- Status & Plan -->
+  <!-- Access status -->
   <div class="card">
-    <div class="card-header"><h2>Statut & Plan</h2></div>
+    <div class="card-header"><h2>Statut et accès</h2></div>
     <form method="POST" class="form-body js-admin-action" data-action-label="Modification enregistrée" style="margin-bottom:12px">
       <input type="hidden" name="action" value="set_status">
       <div class="form-group">

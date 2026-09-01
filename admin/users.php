@@ -7,9 +7,11 @@ $filter = $_GET['filter'] ?? 'all';
 $where = '1=1';
 if ($filter === 'trial') $where .= " AND u.status='trial'";
 if ($filter === 'active') $where .= " AND u.status='active'";
-if ($filter === 'suspended') $where .= " AND (u.status='suspended' OR u.status='expired')";
+if ($filter === 'suspended') $where .= " AND u.status='suspended'";
+if ($filter === 'expired') $where .= " AND u.status='expired'";
+if ($filter === 'banned') $where .= " AND u.status='banned'";
 if ($filter === 'expiring') $where .= " AND u.status='trial' AND u.trial_ends_at BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)";
-$stmt = $db->query("SELECT u.*, p.name AS plan_name FROM users u LEFT JOIN plans p ON p.id=u.plan_id WHERE $where ORDER BY u.created_at DESC LIMIT 500");
+$stmt = $db->query("SELECT u.* FROM users u WHERE $where ORDER BY u.created_at DESC LIMIT 500");
 $users = $stmt->fetchAll();
 ?>
 <div class="page-header">
@@ -19,7 +21,7 @@ $users = $stmt->fetchAll();
 
 <div class="filters-bar">
   <div class="filter-tabs">
-    <?php foreach (['all'=>'Tous','trial'=>'Essai','active'=>'Actifs','suspended'=>'Suspendus','expiring'=>'Expirent bientôt'] as $k=>$v): ?>
+    <?php foreach (['all'=>'Tous','trial'=>'Essai','active'=>'Actifs','suspended'=>'Suspendus','expired'=>'Expirés','banned'=>'Bannis','expiring'=>'Expirent bientôt'] as $k=>$v): ?>
     <a href="?filter=<?= $k ?>" class="filter-tab <?= $filter===$k?'active':'' ?>"><?= $v ?></a>
     <?php endforeach; ?>
   </div>
@@ -33,17 +35,17 @@ $users = $stmt->fetchAll();
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover align-middle" id="users-table">
-      <thead><tr><th>Client</th><th>Plan</th><th>Statut</th><th>Crédits</th><th>Essai expire</th><th>Inscrit le</th><th>Options</th></tr></thead>
+      <thead><tr><th>Client</th><th>Statut</th><th>Crédits</th><th>Essai expire</th><th>Abonnement annuel</th><th>Inscrit le</th><th>Options</th></tr></thead>
       <tbody>
       <?php foreach ($users as $u):
-        $searchText = strtolower(implode(' ', array_filter([$u['name'],$u['email'],$u['company'],$u['phone'],$u['license_key'],$u['status'],$u['plan_name']])));
+        $searchText = strtolower(implode(' ', array_filter([$u['name'],$u['email'],$u['company'],$u['phone'],$u['license_key'],$u['status']])));
       ?>
         <tr class="user-row" data-user-search="<?= h($searchText) ?>">
           <td><strong><?= h($u['name']) ?></strong><br><small class="text-muted"><?= h($u['email']) ?></small><?php if (!empty($u['company'])): ?><br><small class="text-muted"><?= h($u['company']) ?></small><?php endif; ?></td>
-          <td><?= h($u['plan_name'] ?? '—') ?></td>
           <td><?= status_badge($u['status']) ?></td>
           <td><span class="credits-display <?= $u['credits_balance'] <= 0 ? 'zero' : ($u['credits_balance'] < 20 ? 'low' : '') ?>"><?= number_format($u['credits_balance']) ?></span></td>
           <td><?php if ($u['trial_ends_at']): $days=(int)ceil((strtotime($u['trial_ends_at'])-time())/86400); ?><span class="<?= $days<=3?'text-danger':($days<=7?'text-warning':'') ?>"><?= format_date($u['trial_ends_at']) ?><?php if ($days<=7 && $days>=0): ?> (<?= $days ?>j)<?php endif; ?><?php if ($days<0): ?> <span class="badge badge-danger">Expiré</span><?php endif; ?></span><?php else: ?>—<?php endif; ?></td>
+          <td><?php if (!empty($u['subscription_ends_at'])): $subDays=(int)ceil((strtotime($u['subscription_ends_at'])-time())/86400); ?><span class="<?= $subDays<0?'text-danger':'' ?>"><?= format_date($u['subscription_ends_at']) ?><?php if ($subDays<0): ?> <span class="badge badge-danger">Expiré</span><?php endif; ?></span><?php else: ?>—<?php endif; ?></td>
           <td><?= format_date($u['created_at']) ?></td>
           <td><a href="<?= APP_URL ?>/admin/user-detail.php?id=<?= (int)$u['id'] ?>" class="btn btn-sm btn-primary">Options</a></td>
         </tr>

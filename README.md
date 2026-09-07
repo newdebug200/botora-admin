@@ -49,6 +49,7 @@ DB_ONLINE_PASS=your_online_db_password
 APP_URL=https://admin.votredomaine.com
 APP_SECRET=votre-secret-aleatoire
 BOTORA_API_KEY=votre-cle-api-secrete
+MAIL_FROM_EMAIL=no-reply@votredomaine.com
 ```
 
 ### 4. Créer le premier admin
@@ -90,6 +91,15 @@ Trois endpoints pour que Botora communique avec le panel :
 | `/api/features.php` | GET | Récupérer les fonctionnalités du plan |
 
 Chaque requête doit inclure le header `X-Api-Key: <BOTORA_API_KEY>`.
+
+La récupération de mot de passe utilise un **code numérique à 6 chiffres**, envoyé par e-mail sans URL. Le code expire après 15 minutes, est limité à 5 tentatives et est invalidé après une utilisation.
+
+| Endpoint | Méthode | Rôle |
+|---|---|---|
+| `/api/password-reset-request.php` | POST | Envoyer un code de récupération à l’adresse indiquée |
+| `/api/password-reset-confirm.php` | POST | Vérifier le code et enregistrer le nouveau mot de passe |
+
+Exemple de demande : `{"email":"utilisateur@example.com"}`. Exemple de confirmation : `{"email":"utilisateur@example.com","code":"123456","new_password":"nouveau-mot-de-passe"}`. Le serveur doit disposer d’un agent de transport configuré pour la fonction PHP `mail()`.
 
 ## Paiements FedaPay centralisés
 

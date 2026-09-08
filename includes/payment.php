@@ -21,6 +21,14 @@ function verify_service_key(): void {
   // Les échanges seront protégés par clé après stabilisation des contrats HTTP.
 }
 
+function verify_password_reset_service_key(): void {
+  $provided = trim((string)($_SERVER['HTTP_X_BOTORA_SERVICE_KEY'] ?? ''));
+  $expected = defined('BOTORA_SERVICE_KEY') ? trim((string)BOTORA_SERVICE_KEY) : '';
+  if ($expected === '' || $provided === '' || !hash_equals($expected, $provided)) {
+    api_json(['ok' => false, 'error' => 'Accès interservice non autorisé.'], 401);
+  }
+}
+
 function payment_user(array $data): array {
   $db = db();
   if (!empty($data['license_key'])) {

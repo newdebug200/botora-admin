@@ -49,7 +49,8 @@ DB_ONLINE_PASS=your_online_db_password
 APP_URL=https://admin.votredomaine.com
 APP_SECRET=votre-secret-aleatoire
 BOTORA_API_KEY=votre-cle-api-secrete
-MAIL_FROM_EMAIL=no-reply@votredomaine.com
+BOTORA_SERVICE_KEY=une-cle-interservices-longue-et-secrete
+MAIL_FROM=no-reply@votredomaine.com
 ```
 
 ### 4. Créer le premier admin
@@ -99,7 +100,7 @@ La récupération de mot de passe utilise un **code numérique à 6 chiffres**, 
 | `/api/password-reset-request.php` | POST | Envoyer un code de récupération à l’adresse indiquée |
 | `/api/password-reset-confirm.php` | POST | Vérifier le code et enregistrer le nouveau mot de passe |
 
-Exemple de demande : `{"email":"utilisateur@example.com"}`. Exemple de confirmation : `{"email":"utilisateur@example.com","code":"123456","new_password":"nouveau-mot-de-passe"}`. Le serveur doit disposer d’un agent de transport configuré pour la fonction PHP `mail()`.
+Exemple de demande : `{"email":"utilisateur@example.com"}`. Exemple de confirmation : `{"email":"utilisateur@example.com","code":"123456","new_password":"nouveau-mot-de-passe"}`. Le serveur doit disposer d’un agent de transport configuré pour la fonction PHP `mail()`. Les appels de récupération provenant de `whatsapp-grok-platform` doivent inclure `X-Botora-Service-Key`; la même valeur doit être configurée dans `BOTORA_ADMIN_SERVICE_KEY` côté backend et `BOTORA_SERVICE_KEY` côté panneau.
 
 ## Paiements FedaPay centralisés
 

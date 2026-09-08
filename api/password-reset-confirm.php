@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/payment.php';
-verify_service_key();
+verify_password_reset_service_key();
 $data = payment_request_json();
 $email = strtolower(trim((string)($data['email'] ?? '')));
 $code = trim((string)($data['code'] ?? ''));

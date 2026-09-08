@@ -101,7 +101,8 @@ if ($configuredAppUrl === '' || ($isLocalUrl && DB_MODE !== 'local')) $configure
 define('APP_URL', rtrim($configuredAppUrl, '/'));
 define('APP_SECRET', botora_setting('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', botora_setting('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
-define('BOTORA_SERVICE_KEY', botora_setting('BOTORA_SERVICE_KEY'));
+// Valeur pratique pour le développement local ; remplacer en production.
+define('BOTORA_SERVICE_KEY', botora_setting('BOTORA_SERVICE_KEY') ?: 'abcd');
 // Authentification interservices désactivée pendant la phase de développement.
 define('APP_DEBUG', filter_var(botora_setting('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN));
 

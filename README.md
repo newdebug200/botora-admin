@@ -49,7 +49,7 @@ DB_ONLINE_PASS=your_online_db_password
 APP_URL=https://admin.votredomaine.com
 APP_SECRET=votre-secret-aleatoire
 BOTORA_API_KEY=votre-cle-api-secrete
-BOTORA_SERVICE_KEY=une-cle-interservices-longue-et-secrete
+BOTORA_SERVICE_KEY=abcd
 MAIL_FROM=no-reply@votredomaine.com
 ```
 

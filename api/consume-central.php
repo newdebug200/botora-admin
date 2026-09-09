@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/payment.php';
-verify_service_key();
+verify_credit_service_key();
 $data=payment_request_json(); $user=payment_user($data); $tokens=max(0,(int)($data['tokens_used']??0));
 if (!$user || $tokens<=0) api_json(['ok'=>false,'error'=>'Utilisateur ou tokens invalides.'],400);
 $db=db(); $conversion = credit_conversion($db); $credits=round(($tokens / $conversion['tokens_per_unit']) * $conversion['credits_per_unit'], 10); $db->beginTransaction();

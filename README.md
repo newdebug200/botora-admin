@@ -102,6 +102,8 @@ La récupération de mot de passe utilise un **code numérique à 6 chiffres**, 
 
 Exemple de demande : `{"email":"utilisateur@example.com"}`. Exemple de confirmation : `{"email":"utilisateur@example.com","code":"123456","new_password":"nouveau-mot-de-passe"}`. Le serveur doit disposer d’un agent de transport configuré pour la fonction PHP `mail()`. Les appels de récupération provenant de `whatsapp-grok-platform` doivent inclure `X-Botora-Service-Key`; la même valeur doit être configurée dans `BOTORA_ADMIN_SERVICE_KEY` côté backend et `BOTORA_SERVICE_KEY` côté panneau.
 
+L’endpoint `/api/consume-central.php`, utilisé pour débiter les tokens IA, est également protégé par cette même clé interservices. Il refuse toute requête sans en-tête `X-Botora-Service-Key` valide.
+
 ## Paiements FedaPay centralisés
 
 `botora-admin` est le seul service qui communique avec FedaPay. Les endpoints interservices utilisent le header privé `X-Botora-Service-Key` :

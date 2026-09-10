@@ -1,5 +1,6 @@
 {
     "require": {
-        "fedapay/fedapay-php": "^0.4.8"
+        "fedapay/fedapay-php": "^0.4.8",
+        "symfony/mailer": "^7.4"
     }
 }

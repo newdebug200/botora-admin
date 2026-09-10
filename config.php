@@ -117,7 +117,8 @@ define('CREDIT_TOKENS_PER_CREDIT', 100000);
 define('CREDIT_VALUE_XOF', 120);
 define('SESSION_LIFETIME', 3600 * 8);
 define('MAIL_FROM', botora_setting('MAIL_FROM') ?: '');
-define('MAIL_FROM_NAME', 'Botora Admin');
+define('MAIL_FROM_NAME', botora_setting('MAIL_FROM_NAME') ?: 'Botora Admin');
+define('MAILER_DSN', botora_setting('MAILER_DSN') ?: 'smtp://username:password@smtp.example.com:587?encryption=tls&auth_mode=login');
 
 // Les anciennes clés codées en dur ont été supprimées : elles ne doivent jamais
 // être stockées dans le dépôt. Fournir les vraies clés uniquement via .env/serveur.

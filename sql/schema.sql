@@ -98,6 +98,37 @@ CREATE TABLE whatsapp_accounts (
   INDEX idx_whatsapp_accounts_profile (user_id, profile_key)
 );
 
+-- Account deletion requests are reviewed by Botora Admin before execution.
+CREATE TABLE account_deletion_requests (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NULL,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(191) NOT NULL,
+  reason_code VARCHAR(50) NOT NULL,
+  reason_text TEXT NULL,
+  status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at DATETIME NULL,
+  reviewed_by INT UNSIGNED NULL,
+  review_note TEXT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (reviewed_by) REFERENCES admins(id) ON DELETE SET NULL,
+  INDEX idx_account_deletion_status_requested (status, requested_at),
+  INDEX idx_account_deletion_email (email)
+);
+
+-- Immutable anti-abuse history; it survives deletion of the related user.
+CREATE TABLE whatsapp_trial_history (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  phone_number VARCHAR(30) NOT NULL UNIQUE,
+  first_user_id INT UNSIGNED NULL,
+  first_user_email VARCHAR(191) NULL,
+  first_connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (first_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_trial_history_user (first_user_id)
+);
+
 -- License activations (track each PC/installation)
 CREATE TABLE activations (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

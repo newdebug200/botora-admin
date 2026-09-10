@@ -106,6 +106,10 @@ Exemple de demande : `{"email":"utilisateur@example.com"}`. Exemple de confirmat
 
 L’endpoint `/api/consume-central.php`, utilisé pour débiter les tokens IA, est également protégé par cette même clé interservices. Il refuse toute requête sans en-tête `X-Botora-Service-Key` valide.
 
+## Suppression de compte et historique WhatsApp
+
+Les utilisateurs envoient une demande de suppression avec un motif depuis Botora. La demande est visible dans `admin/account-deletion-requests.php`, où un administrateur peut la refuser ou valider la suppression définitive. Avant cette suppression, les numéros WhatsApp associés sont copiés dans `whatsapp_trial_history`. Cette table est volontairement indépendante du compte et conserve les numéros déjà utilisés pendant un essai gratuit afin d’empêcher la création successive de comptes d’essai avec le même numéro.
+
 ## Paiements FedaPay centralisés
 
 `botora-admin` est le seul service qui communique avec FedaPay. Les endpoints interservices utilisent le header privé `X-Botora-Service-Key` :

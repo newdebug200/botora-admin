@@ -16,6 +16,10 @@ $profileKey = trim((string)($payload['profile_id'] ?? ''));
 if ($user['id'] && $eventType === 'whatsapp.profile_connected' && $phoneNumber !== '') {
   $db->prepare('INSERT INTO whatsapp_accounts (user_id,profile_key,phone_number,is_connected,last_connected_at,disconnected_at) VALUES (?,?,?,1,NOW(),NULL) ON DUPLICATE KEY UPDATE profile_key=VALUES(profile_key),is_connected=1,last_connected_at=NOW(),disconnected_at=NULL')
     ->execute([$user['id'], $profileKey !== '' ? $profileKey : null, $phoneNumber]);
+  if (strtolower((string)($user['status'] ?? '')) === 'trial') {
+    $db->prepare('INSERT INTO whatsapp_trial_history (phone_number,first_user_id,first_user_email,first_connected_at,last_seen_at) VALUES (?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE last_seen_at=NOW()')
+      ->execute([$phoneNumber, $user['id'], $user['email'] ?? null, date('Y-m-d H:i:s')]);
+  }
 } elseif ($user['id'] && $eventType === 'whatsapp.profile_disconnected') {
   if ($phoneNumber !== '') {
     $db->prepare('UPDATE whatsapp_accounts SET is_connected=0,disconnected_at=NOW() WHERE user_id=? AND phone_number=?')->execute([$user['id'], $phoneNumber]);

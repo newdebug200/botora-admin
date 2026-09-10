@@ -21,8 +21,11 @@ $paidActive = strtolower((string)$user['status']) === 'active'
 $existingStmt = $db->prepare('SELECT id,user_id,profile_key FROM whatsapp_accounts WHERE phone_number=? AND user_id<>? LIMIT 1');
 $existingStmt->execute([$phoneNumber, (int)$user['id']]);
 $existing = $existingStmt->fetch();
+$historyStmt = $db->prepare('SELECT id,first_user_id FROM whatsapp_trial_history WHERE phone_number=? AND (first_user_id IS NULL OR first_user_id<>?) LIMIT 1');
+$historyStmt->execute([$phoneNumber, (int)$user['id']]);
+$trialHistory = $historyStmt->fetch();
 
-if ($existing && !$paidActive) {
+if (($existing || $trialHistory) && !$paidActive) {
   api_json([
     'ok' => true,
     'allowed' => false,

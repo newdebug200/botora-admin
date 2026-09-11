@@ -1,16 +1,10 @@
 <?php
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/account-deletion.php';
 auth_check();
 $db = db();
-$reasons = [
-  'no_longer_needed' => 'Je n’en ai plus besoin',
-  'too_expensive' => 'Le prix est trop élevé',
-  'difficult_to_use' => 'Le service est difficile à utiliser',
-  'missing_features' => 'Il manque des fonctionnalités',
-  'privacy_concern' => 'Préoccupation liée à la confidentialité',
-  'other' => 'Autre'
-];
+$reasons = account_deletion_reasons();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $requestId = (int)($_POST['request_id'] ?? 0);
   $action = $_POST['action'] ?? '';

@@ -1,23 +1,14 @@
 <?php
 require_once __DIR__ . '/../includes/payment.php';
+require_once __DIR__ . '/../includes/account-deletion.php';
 verify_password_reset_service_key();
 $data = payment_request_json();
 $email = strtolower(trim((string)($data['email'] ?? '')));
 $reasonCode = trim((string)($data['reason_code'] ?? ''));
 $reasonText = trim((string)($data['reason_text'] ?? ''));
-$allowedReasons = [
-  'no_longer_needed',
-  'too_expensive',
-  'difficult_to_use',
-  'missing_features',
-  'privacy_concern',
-  'other'
-];
-if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !in_array($reasonCode, $allowedReasons, true)) {
-  api_json(['ok' => false, 'error' => 'Adresse e-mail ou motif invalide.'], 400);
-}
-if ($reasonCode === 'other' && mb_strlen($reasonText) < 20) {
-  api_json(['ok' => false, 'error' => 'Pour le motif Autre, la précision doit contenir au moins 20 caractères.'], 400);
+[$reasonValid, $reasonError] = validate_account_deletion_reason($reasonCode, $reasonText);
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !$reasonValid) {
+  api_json(['ok' => false, 'error' => !filter_var($email, FILTER_VALIDATE_EMAIL) ? 'Adresse e-mail ou motif invalide.' : $reasonError], 400);
 }
 $db = db();
 $userStmt = $db->prepare('SELECT id,name,email FROM users WHERE email=? LIMIT 1');

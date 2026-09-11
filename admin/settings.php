@@ -1,6 +1,8 @@
 <?php
 $pageTitle = 'Paramètres'; $activePage = 'settings';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
 require_superadmin();
 
 $db = db();
@@ -48,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
   header('Location: ' . APP_URL . '/admin/settings.php'); exit;
 }
+require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="page-header"><h1>Paramètres</h1></div>
 

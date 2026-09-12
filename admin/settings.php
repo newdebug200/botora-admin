@@ -54,10 +54,15 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="page-header"><h1>Paramètres</h1></div>
 
-<div class="row-2col" style="align-items:start">
-  <div>
-    <div class="card">
-      <div class="card-header"><h2>Changer mon mot de passe</h2></div>
+<div class="settings-accordion" data-settings-accordion>
+  <section class="settings-accordion-item is-open">
+    <h2 class="settings-accordion-heading">
+      <button type="button" class="settings-accordion-trigger" aria-expanded="true" aria-controls="settings-panel-password">
+        <span><strong>Modifier le mot de passe</strong><small>Changer le mot de passe de votre compte administrateur</small></span>
+        <span class="settings-accordion-icon" aria-hidden="true">+</span>
+      </button>
+    </h2>
+    <div id="settings-panel-password" class="settings-accordion-panel" role="region">
       <form method="POST" class="form-body">
         <input type="hidden" name="action" value="change_password">
         <div class="form-group"><label for="current-password">Ancien mot de passe</label><input id="current-password" type="password" name="current_password" class="form-control" required autocomplete="current-password"></div>
@@ -66,47 +71,91 @@ require_once __DIR__ . '/../includes/header.php';
         <button type="submit" class="btn btn-outline">Modifier</button>
       </form>
     </div>
-  </div>
-</div>
+  </section>
 
-<div class="card" style="margin-top:16px">
-  <div class="card-header"><h2>Abonnement annuel</h2></div>
-  <form method="POST" class="form-body">
-    <input type="hidden" name="action" value="update_subscription">
-    <p class="text-muted">Le prix est facturé en francs CFA. La durée est calculée côté serveur et le renouvellement ne recrée jamais une période d’essai.</p>
-    <div class="form-row">
-      <div class="form-group"><label for="subscription-price">Prix annuel (XOF)</label><input id="subscription-price" type="number" name="subscription_price_xof" class="form-control" min="0" step="1" required value="<?= h((string)(int)$subscriptionConfig['price_xof']) ?>"></div>
-      <div class="form-group"><label>Durée</label><input type="text" class="form-control" value="365 jours (1 an)" readonly></div>
+  <section class="settings-accordion-item">
+    <h2 class="settings-accordion-heading">
+      <button type="button" class="settings-accordion-trigger" aria-expanded="false" aria-controls="settings-panel-subscription">
+        <span><strong>Abonnement annuel</strong><small>Gérer le prix et la disponibilité de l’offre annuelle</small></span>
+        <span class="settings-accordion-icon" aria-hidden="true">+</span>
+      </button>
+    </h2>
+    <div id="settings-panel-subscription" class="settings-accordion-panel" role="region" hidden>
+      <form method="POST" class="form-body">
+        <input type="hidden" name="action" value="update_subscription">
+        <p class="text-muted">Le prix est facturé en francs CFA. La durée est calculée côté serveur et le renouvellement ne recrée jamais une période d’essai.</p>
+        <div class="form-row">
+          <div class="form-group"><label for="subscription-price">Prix annuel (XOF)</label><input id="subscription-price" type="number" name="subscription_price_xof" class="form-control" min="0" step="1" required value="<?= h((string)(int)$subscriptionConfig['price_xof']) ?>"></div>
+          <div class="form-group"><label for="subscription-duration">Durée</label><input id="subscription-duration" type="text" class="form-control" value="365 jours (1 an)" readonly></div>
+        </div>
+        <label class="checkbox-label"><input type="checkbox" name="subscription_active" <?= !empty($subscriptionConfig['is_active']) ? 'checked' : '' ?>> Offre disponible pour les utilisateurs</label>
+        <button type="submit" class="btn btn-primary">Enregistrer l’offre</button>
+      </form>
     </div>
-    <label class="checkbox-label"><input type="checkbox" name="subscription_active" <?= !empty($subscriptionConfig['is_active']) ? 'checked' : '' ?>> Offre disponible pour les utilisateurs</label>
-    <button type="submit" class="btn btn-primary">Enregistrer l’offre</button>
-  </form>
-</div>
+  </section>
 
-<div class="card" style="margin-top:16px">
-  <div class="card-header"><h2>Conversion des crédits</h2></div>
-  <form method="POST" class="form-body">
-    <input type="hidden" name="action" value="update_credit_conversion">
-    <p class="text-muted">Cette règle est utilisée pour les nouveaux paiements et les futures consommations. Les transactions et consommations historiques conservent toujours leur conversion d’origine.</p>
-    <div class="form-row">
-      <div class="form-group"><label for="credits-per-unit">Crédits pour 100 000 tokens</label><input id="credits-per-unit" type="number" name="credits_per_unit" class="form-control" min="0.0000000001" step="0.0000000001" required value="<?= h((string)$creditConfig['credits_per_unit']) ?>"></div>
-      <div class="form-group"><label for="xof-per-unit">Prix pour 100 000 tokens (XOF)</label><input id="xof-per-unit" type="number" name="xof_per_unit" class="form-control" min="0.01" step="0.01" required value="<?= h((string)$creditConfig['xof_per_unit']) ?>"></div>
+  <section class="settings-accordion-item">
+    <h2 class="settings-accordion-heading">
+      <button type="button" class="settings-accordion-trigger" aria-expanded="false" aria-controls="settings-panel-credits">
+        <span><strong>Conversion des crédits</strong><small>Définir la conversion des tokens et le prix des crédits</small></span>
+        <span class="settings-accordion-icon" aria-hidden="true">+</span>
+      </button>
+    </h2>
+    <div id="settings-panel-credits" class="settings-accordion-panel" role="region" hidden>
+      <form method="POST" class="form-body">
+        <input type="hidden" name="action" value="update_credit_conversion">
+        <p class="text-muted">Cette règle est utilisée pour les nouveaux paiements et les futures consommations. Les transactions et consommations historiques conservent toujours leur conversion d’origine.</p>
+        <div class="form-row">
+          <div class="form-group"><label for="credits-per-unit">Crédits pour 100 000 tokens</label><input id="credits-per-unit" type="number" name="credits_per_unit" class="form-control" min="0.0000000001" step="0.0000000001" required value="<?= h((string)$creditConfig['credits_per_unit']) ?>"></div>
+          <div class="form-group"><label for="xof-per-unit">Prix pour 100 000 tokens (XOF)</label><input id="xof-per-unit" type="number" name="xof_per_unit" class="form-control" min="0.01" step="0.01" required value="<?= h((string)$creditConfig['xof_per_unit']) ?>"></div>
+        </div>
+        <div class="info-row"><span>Unité de tokens</span><strong>100 000 tokens (fixe)</strong></div>
+        <div class="info-row"><span>Prix calculé par crédit</span><strong><?= number_format($creditConfig['xof_per_credit'], 2, ',', ' ') ?> XOF</strong></div>
+        <button type="submit" class="btn btn-primary">Enregistrer la conversion</button>
+      </form>
     </div>
-    <div class="info-row"><span>Unité de tokens</span><strong>100 000 tokens (fixe)</strong></div>
-    <div class="info-row"><span>Prix calculé par crédit</span><strong><?= number_format($creditConfig['xof_per_credit'], 2, ',', ' ') ?> XOF</strong></div>
-    <button type="submit" class="btn btn-primary">Enregistrer la conversion</button>
-  </form>
+  </section>
+
+  <section class="settings-accordion-item">
+    <h2 class="settings-accordion-heading">
+      <button type="button" class="settings-accordion-trigger" aria-expanded="false" aria-controls="settings-panel-api">
+        <span><strong>Configuration API</strong><small>Consulter les clés et endpoints utilisés par la plateforme</small></span>
+        <span class="settings-accordion-icon" aria-hidden="true">+</span>
+      </button>
+    </h2>
+    <div id="settings-panel-api" class="settings-accordion-panel" role="region" hidden>
+      <div class="form-body">
+        <div class="info-row"><span>Clé API Botora</span><code><?= h(API_KEY) ?></code></div>
+        <div class="info-row"><span>Endpoint validate</span><code><?= h(BOTORA_API_URL) ?>/api/validate.php</code></div>
+        <div class="info-row"><span>Endpoint consume</span><code><?= h(BOTORA_API_URL) ?>/api/consume.php</code></div>
+        <div class="info-row"><span>Endpoint features</span><code><?= h(BOTORA_API_URL) ?>/api/features.php</code></div>
+        <p class="text-muted" style="margin-top:12px;font-size:.85rem">Configurez ces valeurs dans le fichier <code>config.php</code> sur votre serveur ou via variables d'environnement.</p>
+      </div>
+    </div>
+  </section>
 </div>
 
-<div class="card" style="margin-top:16px">
-  <div class="card-header"><h2>Configuration API</h2></div>
-  <div class="form-body">
-    <div class="info-row"><span>Clé API Botora</span><code><?= h(API_KEY) ?></code></div>
-    <div class="info-row"><span>Endpoint validate</span><code><?= h(BOTORA_API_URL) ?>/api/validate.php</code></div>
-    <div class="info-row"><span>Endpoint consume</span><code><?= h(BOTORA_API_URL) ?>/api/consume.php</code></div>
-    <div class="info-row"><span>Endpoint features</span><code><?= h(BOTORA_API_URL) ?>/api/features.php</code></div>
-    <p class="text-muted" style="margin-top:12px;font-size:.85rem">Configurez ces valeurs dans le fichier <code>config.php</code> sur votre serveur ou via variables d'environnement.</p>
-  </div>
-</div>
-
+<script>
+(function () {
+  const accordion = document.querySelector('[data-settings-accordion]');
+  if (!accordion) return;
+  const items = Array.from(accordion.querySelectorAll('.settings-accordion-item'));
+  items.forEach((item) => {
+    const trigger = item.querySelector('.settings-accordion-trigger');
+    const panel = item.querySelector('.settings-accordion-panel');
+    if (!trigger || !panel) return;
+    trigger.addEventListener('click', () => {
+      const willOpen = trigger.getAttribute('aria-expanded') !== 'true';
+      items.forEach((other) => {
+        const otherTrigger = other.querySelector('.settings-accordion-trigger');
+        const otherPanel = other.querySelector('.settings-accordion-panel');
+        const isCurrent = other === item;
+        other.classList.toggle('is-open', isCurrent && willOpen);
+        otherTrigger.setAttribute('aria-expanded', isCurrent && willOpen ? 'true' : 'false');
+        otherPanel.hidden = !(isCurrent && willOpen);
+      });
+    });
+  });
+}());
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

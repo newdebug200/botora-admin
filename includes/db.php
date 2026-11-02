@@ -75,12 +75,27 @@ function db_ensure_schema(PDO $pdo, array $cfg): void {
     'ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL AFTER email',
     'UPDATE plans SET price_xof = ROUND(price_eur * 655.957, 2) WHERE price_xof = 0 AND price_eur > 0',
     'ALTER TABLE users MODIFY credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0',
+    'ALTER TABLE users ADD COLUMN trial_started_at DATETIME NULL AFTER credits_balance',
+    'ALTER TABLE users MODIFY trial_ends_at DATETIME NULL',
+    'ALTER TABLE users ADD COLUMN trial_used TINYINT(1) NOT NULL DEFAULT 1 AFTER trial_ends_at',
+    'ALTER TABLE users ADD COLUMN subscription_started_at DATETIME NULL AFTER trial_used',
+    'ALTER TABLE users ADD COLUMN subscription_ends_at DATETIME NULL',
+    'ALTER TABLE users ADD COLUMN control_center_access TINYINT(1) NULL DEFAULT NULL AFTER status',
+    'UPDATE users SET trial_started_at = COALESCE(trial_started_at, created_at), trial_ends_at = COALESCE(trial_ends_at, DATE_ADD(created_at, INTERVAL 14 DAY)), trial_used = 1 WHERE trial_started_at IS NULL OR trial_ends_at IS NULL',
+    "UPDATE users SET plan_id = (SELECT id FROM plans WHERE slug='free' AND is_active=1 LIMIT 1) WHERE plan_id IS NULL",
     'ALTER TABLE credit_logs MODIFY amount DECIMAL(20,10) NOT NULL',
     'ALTER TABLE credit_logs MODIFY balance_after DECIMAL(20,10) NOT NULL',
-    'ALTER TABLE usage_logs MODIFY credits_used DECIMAL(20,10) DEFAULT 0'
+    'ALTER TABLE usage_logs MODIFY credits_used DECIMAL(20,10) DEFAULT 0',
+    "ALTER TABLE payment_transactions ADD COLUMN admin_id INT UNSIGNED NULL AFTER user_id",
+    "ALTER TABLE payment_transactions ADD COLUMN transaction_type VARCHAR(30) NOT NULL DEFAULT 'payment' AFTER credits",
+    'ALTER TABLE payment_transactions ADD INDEX idx_payment_type (transaction_type, status)',
+    'CREATE TABLE IF NOT EXISTS credit_config (id TINYINT UNSIGNED PRIMARY KEY, tokens_per_unit INT UNSIGNED NOT NULL DEFAULT 100000, credits_per_unit DECIMAL(20,10) NOT NULL DEFAULT 1, xof_per_unit DECIMAL(14,2) NOT NULL DEFAULT 120, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)',
+    "INSERT IGNORE INTO credit_config (id,tokens_per_unit,credits_per_unit,xof_per_unit) VALUES (1,100000,1,120)",
+    "CREATE TABLE IF NOT EXISTS keyword_auto_replies (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED NOT NULL, profile_key VARCHAR(191) NOT NULL DEFAULT 'default', keyword VARCHAR(255) NOT NULL, keyword_normalized VARCHAR(255) NOT NULL, response_text TEXT NOT NULL, is_active TINYINT(1) NOT NULL DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, UNIQUE KEY uq_keyword_reply_user_profile_keyword (user_id, profile_key, keyword_normalized), INDEX idx_keyword_reply_user_profile_active (user_id, profile_key, is_active))",
+    'ALTER TABLE api_logs ADD COLUMN error_message LONGTEXT NULL AFTER response'
   ] as $migration) {
     try { $pdo->exec($migration); } catch (PDOException $e) {
-      if (!preg_match('/unknown column|doesn.t exist|no such table|duplicate column|already exists/i', $e->getMessage())) throw $e;
+      if (!preg_match('/unknown column|doesn.t exist|no such table|duplicate column|duplicate key name|duplicate index|already exists/i', $e->getMessage())) throw $e;
     }
   }
   $pdo->exec('CREATE TABLE IF NOT EXISTS botora_schema_versions (id TINYINT UNSIGNED PRIMARY KEY, schema_hash CHAR(64) NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)');

@@ -1,5 +1,14 @@
 // Simple donut chart
 document.addEventListener('DOMContentLoaded', function () {
+  if (window.jQuery && $.fn.select2) {
+    $('.js-user-select').select2({
+      width: '100%',
+      placeholder: function () { return $(this).data('placeholder'); },
+      allowClear: true,
+      minimumInputLength: 0
+    });
+  }
+
   var canvas = document.getElementById('statusChart');
   if (!canvas || !window._chartData) return;
   var d = window._chartData;

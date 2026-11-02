@@ -6,12 +6,11 @@ $db  = db();
 $id  = (int)($_GET['id'] ?? 0);
 if (!$id) { header('Location: ' . APP_URL . '/admin/users.php'); exit; }
 
-$user = $db->prepare('SELECT u.*, p.name as plan_name, p.slug as plan_slug FROM users u LEFT JOIN plans p ON p.id=u.plan_id WHERE u.id=?');
+$user = $db->prepare('SELECT u.* FROM users u WHERE u.id=?');
 $user->execute([$id]);
 $user = $user->fetch();
 if (!$user) { http_response_code(404); die('Utilisateur introuvable.'); }
 
-$plans = $db->query('SELECT * FROM plans WHERE is_active=1 ORDER BY price_xof, price_eur')->fetchAll();
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -40,19 +39,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $signedAmount = $direction === 'remove' ? -abs($amount) : abs($amount);
     $reason = trim($_POST['reason'] ?? ($direction === 'remove' ? 'Retrait manuel admin' : 'Ajout manuel admin'));
     if ($amount > 0) {
-      add_credits($id, $signedAmount, $reason, $_SESSION['admin_id']);
+      record_credit_adjustment($id, $signedAmount, $reason, (int)$_SESSION['admin_id']);
       flash_set('success', $direction === 'remove' ? "{$amount} crédits retirés." : "{$amount} crédits ajoutés.");
     }
+  } elseif ($action === 'set_control_center_access') {
+    $enabled = filter_var($_POST['control_center_access'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+    $db->prepare('UPDATE users SET control_center_access=?, updated_at=NOW() WHERE id=?')->execute([$enabled, $id]);
+    flash_set('success', $enabled ? 'Accès au Centre de contrôle accordé.' : 'Accès au Centre de contrôle retiré.');
   } elseif ($action === 'set_status') {
     $s = $_POST['status'] ?? '';
     if (in_array($s, ['trial','active','suspended','expired','banned'])) {
       $db->prepare('UPDATE users SET status=?, updated_at=NOW() WHERE id=?')->execute([$s, $id]);
       flash_set('success', 'Statut mis à jour.');
     }
-  } elseif ($action === 'set_plan') {
-    $pid = (int)($_POST['plan_id'] ?? 0);
-    $db->prepare('UPDATE users SET plan_id=?, updated_at=NOW() WHERE id=?')->execute([$pid ?: null, $id]);
-    flash_set('success', 'Plan mis à jour.');
   } elseif ($action === 'extend_trial') {
     $days = (int)($_POST['days'] ?? 7);
     $db->prepare('UPDATE users SET trial_ends_at=DATE_ADD(IFNULL(trial_ends_at, CURDATE()), INTERVAL ? DAY), updated_at=NOW() WHERE id=?')->execute([$days, $id]);
@@ -69,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Reload fresh
-$user = $db->prepare('SELECT u.*, p.name as plan_name FROM users u LEFT JOIN plans p ON p.id=u.plan_id WHERE u.id=?');
+$user = $db->prepare('SELECT u.* FROM users u WHERE u.id=?');
 $user->execute([$id]);
 $user = $user->fetch();
 
@@ -89,6 +88,10 @@ $activities = $db->prepare('SELECT event_type,tokens_used,credits_used,payload,c
 $activities->execute([$id]);
 $activities = $activities->fetchAll();
 
+$user_transactions = $db->prepare('SELECT pt.*, a.name AS admin_name FROM payment_transactions pt LEFT JOIN admins a ON a.id=pt.admin_id WHERE pt.user_id=? ORDER BY pt.created_at DESC LIMIT 100');
+$user_transactions->execute([$id]);
+$user_transactions = $user_transactions->fetchAll();
+
 $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_ends_at']) - time()) / 86400) : null;
 ?>
 <div class="page-header">
@@ -105,9 +108,11 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <div class="card">
     <div class="card-header"><h2>Informations</h2></div>
     <div class="info-list">
-      <div class="info-row"><span>Plan</span><strong><?= h($user['plan_name'] ?? 'Aucun') ?></strong></div>
+      <div class="info-row"><span>Accès</span><strong><?= h(ucfirst((string)$user['status'])) ?></strong></div>
+      <div class="info-row"><span>Centre de contrôle</span><strong><?= $user['control_center_access'] === null ? 'Héritage du rôle local' : ($user['control_center_access'] ? 'Autorisé' : 'Refusé') ?></strong></div>
       <div class="info-row"><span>Crédits</span><strong class="credits-display <?= $user['credits_balance']<=0?'zero':($user['credits_balance']<20?'low':'') ?>"><?= number_format($user['credits_balance']) ?></strong></div>
       <div class="info-row"><span>Essai expire</span><strong><?= $user['trial_ends_at'] ? format_date($user['trial_ends_at']).' ('.($trial_days_left >= 0 ? $trial_days_left.'j' : 'Expiré').')' : '—' ?></strong></div>
+      <div class="info-row"><span>Abonnement annuel</span><strong><?= !empty($user['subscription_ends_at']) ? format_date($user['subscription_ends_at']) : 'Aucun' ?></strong></div>
       <div class="info-row"><span>Inscrit le</span><strong><?= format_datetime($user['created_at']) ?></strong></div>
       <div class="info-row"><span>Mis à jour</span><strong><?= format_datetime($user['updated_at']) ?></strong></div>
     </div>
@@ -157,9 +162,19 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     </form>
   </div>
 
-  <!-- Status & Plan -->
+  <!-- Control center permission -->
   <div class="card">
-    <div class="card-header"><h2>Statut & Plan</h2></div>
+    <div class="card-header"><h2>Centre de contrôle</h2></div>
+    <form method="POST" class="form-body js-admin-action">
+      <input type="hidden" name="action" value="set_control_center_access">
+      <div class="form-group"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" name="control_center_access" value="1" <?= $user['control_center_access'] ? 'checked' : '' ?>> Autoriser l’accès à l’administration de la plateforme</label><small class="text-muted">Ce droit est vérifié par WhatsApp Cloud Platform auprès de Botora Admin. Décoché, l’utilisateur ne pourra pas ouvrir le Centre de contrôle.</small></div>
+      <button type="submit" class="btn btn-primary btn-block">Enregistrer le droit</button>
+    </form>
+  </div>
+
+  <!-- Access status -->
+  <div class="card">
+    <div class="card-header"><h2>Statut et accès</h2></div>
     <form method="POST" class="form-body js-admin-action" data-action-label="Modification enregistrée" style="margin-bottom:12px">
       <input type="hidden" name="action" value="set_status">
       <div class="form-group">
@@ -172,19 +187,13 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
       </div>
       <button type="submit" class="btn btn-outline btn-block">Appliquer</button>
     </form>
-    <form method="POST" class="form-body js-admin-action" data-action-label="Modification enregistrée" style="margin-bottom:12px">
-      <input type="hidden" name="action" value="set_plan">
-      <div class="form-group">
-        <label>Changer de plan</label>
-        <select name="plan_id" class="form-control">
-          <option value="">Aucun plan</option>
-          <?php foreach ($plans as $p): ?>
-          <option value="<?= $p['id'] ?>" <?= $user['plan_id']==$p['id']?'selected':'' ?>><?= h($p['name']) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-outline btn-block">Changer</button>
-    </form>
+    <div class="d-flex gap-2 mb-3">
+      <?php if ($user['status'] !== 'suspended'): ?>
+      <form method="POST" class="flex-fill" onsubmit="return confirm('Suspendre ce compte ?')"><input type="hidden" name="action" value="set_status"><input type="hidden" name="status" value="suspended"><button type="submit" class="btn btn-danger w-100">Suspendre le compte</button></form>
+      <?php else: ?>
+      <form method="POST" class="flex-fill"><input type="hidden" name="action" value="set_status"><input type="hidden" name="status" value="active"><button type="submit" class="btn btn-success w-100">Réactiver le compte</button></form>
+      <?php endif; ?>
+    </div>
     <form method="POST" class="form-body">
       <input type="hidden" name="action" value="extend_trial">
       <div class="form-group">
@@ -238,6 +247,27 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     </table>
   </div>
   <?php endif; ?>
+
+  <!-- User transactions -->
+  <div class="card" style="grid-column: 1/-1">
+    <div class="card-header"><h2>Transactions du compte</h2><span class="text-muted small"><?= count($user_transactions) ?> opérations récentes</span></div>
+    <div class="table-responsive"><table class="table table-sm align-middle">
+      <thead><tr><th>Date</th><th>Type</th><th>Montant indicatif</th><th>Crédits</th><th>Statut</th><th>Motif / opérateur</th></tr></thead>
+      <tbody>
+      <?php foreach ($user_transactions as $transaction): $transactionType = (string)($transaction['transaction_type'] ?? 'payment'); ?>
+        <tr>
+          <td><?= format_datetime($transaction['created_at']) ?></td>
+          <td><?= credit_transaction_type_badge($transactionType) ?></td>
+          <td><?= number_format((float)$transaction['amount_xof'], 0, ',', ' ') ?> XOF</td>
+          <td class="<?= $transactionType === 'admin_debit' ? 'text-danger' : 'text-success' ?>"><?= $transactionType === 'admin_debit' ? '−' : '+' ?><?= number_format((float)$transaction['credits'], 3, ',', ' ') ?></td>
+          <td><?= $transactionType === 'payment' ? payment_status_badge((string)$transaction['status']) : '<span class="badge badge-success">Approuvée automatiquement</span>' ?></td>
+          <td><?= h((string)($transaction['description'] ?? '—')) ?><?php if (!empty($transaction['admin_name'])): ?><br><small class="text-muted">Par <?= h($transaction['admin_name']) ?></small><?php endif; ?></td>
+        </tr>
+      <?php endforeach; ?>
+      <?php if (!$user_transactions): ?><tr><td colspan="6" class="text-center text-muted">Aucune transaction enregistrée.</td></tr><?php endif; ?>
+      </tbody>
+    </table></div>
+  </div>
 
   <!-- Central activity history -->
   <div class="card" style="grid-column: 1/-1">

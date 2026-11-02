@@ -49,13 +49,84 @@ CREATE TABLE users (
   plan_id INT UNSIGNED NULL,
   license_key CHAR(36) NOT NULL UNIQUE,
   status ENUM('trial','active','suspended','expired','banned') DEFAULT 'trial',
+  control_center_access TINYINT(1) NULL DEFAULT NULL,
   credits_balance DECIMAL(20,10) NOT NULL DEFAULT 0,
-  trial_ends_at DATE NULL,
+  trial_started_at DATETIME NULL,
+  trial_ends_at DATETIME NULL,
+  trial_used TINYINT(1) NOT NULL DEFAULT 1,
+  subscription_started_at DATETIME NULL,
+  subscription_ends_at DATETIME NULL,
   activated_at DATETIME NULL,
   notes TEXT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL
+);
+
+-- One-time password reset codes sent by email; codes are stored hashed.
+CREATE TABLE password_reset_requests (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  email VARCHAR(191) NOT NULL,
+  code_hash VARCHAR(255) NOT NULL,
+  attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  request_ip VARCHAR(45) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_password_reset_email_created (email, created_at),
+  INDEX idx_password_reset_user_active (user_id, used_at, expires_at)
+);
+
+-- WhatsApp accounts connected by each Botora user.
+CREATE TABLE whatsapp_accounts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  profile_key VARCHAR(191) NULL,
+  phone_number VARCHAR(30) NOT NULL,
+  display_name VARCHAR(150) NULL,
+  is_connected TINYINT(1) NOT NULL DEFAULT 1,
+  first_connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  disconnected_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_whatsapp_account_user_phone (user_id, phone_number),
+  INDEX idx_whatsapp_accounts_user (user_id, created_at),
+  INDEX idx_whatsapp_accounts_profile (user_id, profile_key)
+);
+
+-- Account deletion requests are reviewed by Botora Admin before execution.
+CREATE TABLE account_deletion_requests (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NULL,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(191) NOT NULL,
+  reason_code VARCHAR(50) NOT NULL,
+  reason_text TEXT NULL,
+  status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at DATETIME NULL,
+  reviewed_by INT UNSIGNED NULL,
+  review_note TEXT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (reviewed_by) REFERENCES admins(id) ON DELETE SET NULL,
+  INDEX idx_account_deletion_status_requested (status, requested_at),
+  INDEX idx_account_deletion_email (email)
+);
+
+-- Immutable anti-abuse history; it survives deletion of the related user.
+CREATE TABLE whatsapp_trial_history (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  phone_number VARCHAR(30) NOT NULL UNIQUE,
+  first_user_id INT UNSIGNED NULL,
+  first_user_email VARCHAR(191) NULL,
+  first_connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (first_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_trial_history_user (first_user_id)
 );
 
 -- License activations (track each PC/installation)
@@ -106,9 +177,11 @@ CREATE INDEX idx_usage_logs_user ON usage_logs(user_id, logged_at);
 CREATE TABLE payment_transactions (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
+  admin_id INT UNSIGNED NULL,
   external_id VARCHAR(100) NULL UNIQUE,
   amount_xof DECIMAL(14,2) NOT NULL,
   credits DECIMAL(20,10) NOT NULL,
+  transaction_type VARCHAR(30) NOT NULL DEFAULT 'payment',
   status VARCHAR(40) NOT NULL DEFAULT 'pending',
   description VARCHAR(255) NULL,
   metadata JSON NULL,
@@ -116,8 +189,89 @@ CREATE TABLE payment_transactions (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL,
   INDEX idx_payment_user (user_id, created_at),
-  INDEX idx_payment_status (status)
+  INDEX idx_payment_status (status),
+  INDEX idx_payment_type (transaction_type, status)
+);
+
+CREATE TABLE subscription_config (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  price_xof DECIMAL(14,2) NOT NULL DEFAULT 0,
+  duration_days INT UNSIGNED NOT NULL DEFAULT 365,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO subscription_config (id, price_xof, duration_days, is_active) VALUES (1, 0, 365, 1);
+
+-- Global credit conversion. The token unit remains fixed at 100,000.
+CREATE TABLE credit_config (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  tokens_per_unit INT UNSIGNED NOT NULL DEFAULT 100000,
+  credits_per_unit DECIMAL(20,10) NOT NULL DEFAULT 1,
+  xof_per_unit DECIMAL(14,2) NOT NULL DEFAULT 120,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO credit_config (id, tokens_per_unit, credits_per_unit, xof_per_unit) VALUES (1, 100000, 1, 120);
+
+CREATE TABLE subscription_payments (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  external_id VARCHAR(100) NULL UNIQUE,
+  amount_xof DECIMAL(14,2) NOT NULL,
+  duration_days INT UNSIGNED NOT NULL DEFAULT 365,
+  status VARCHAR(40) NOT NULL DEFAULT 'pending',
+  description VARCHAR(255) NULL,
+  metadata JSON NULL,
+  approved_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_subscription_user (user_id, created_at),
+  INDEX idx_subscription_status (status)
+);
+
+CREATE TABLE subscription_webhook_events (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  subscription_payment_id INT UNSIGNED NULL,
+  event_id VARCHAR(255) NOT NULL UNIQUE,
+  event_type VARCHAR(100) NOT NULL,
+  payload LONGTEXT NOT NULL,
+  received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (subscription_payment_id) REFERENCES subscription_payments(id) ON DELETE SET NULL
+);
+
+-- User-owned automatic replies triggered by an exact, case-insensitive keyword.
+CREATE TABLE keyword_auto_replies (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  profile_key VARCHAR(191) NOT NULL DEFAULT 'default',
+  keyword VARCHAR(255) NOT NULL,
+  keyword_normalized VARCHAR(255) NOT NULL,
+  response_text TEXT NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_keyword_reply_user_profile_keyword (user_id, profile_key, keyword_normalized),
+  INDEX idx_keyword_reply_user_profile_active (user_id, profile_key, is_active)
+);
+
+CREATE TABLE api_key_history (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  account_email VARCHAR(191) NOT NULL,
+  platform_key_uid VARCHAR(100) NOT NULL,
+  key_name VARCHAR(80) NOT NULL,
+  key_prefix VARCHAR(32) NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'active',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_used_at DATETIME NULL,
+  revoked_at DATETIME NULL,
+  UNIQUE KEY uq_api_key_history_uid (platform_key_uid),
+  INDEX idx_api_key_history_account (account_email, created_at),
+  INDEX idx_api_key_history_status (status)
 );
 
 CREATE TABLE payment_webhook_events (
@@ -128,6 +282,26 @@ CREATE TABLE payment_webhook_events (
   payload JSON NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (payment_id) REFERENCES payment_transactions(id) ON DELETE SET NULL
+);
+
+-- API request and response audit trail. Payloads are sanitized before storage.
+CREATE TABLE api_logs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NULL,
+  method VARCHAR(10) NOT NULL,
+  route VARCHAR(255) NOT NULL,
+  ip_address VARCHAR(45) NULL,
+  user_agent VARCHAR(500) NULL,
+  payload LONGTEXT NULL,
+  response LONGTEXT NULL,
+  error_message LONGTEXT NULL,
+  status_code SMALLINT UNSIGNED NOT NULL,
+  response_ms INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_api_logs_created (created_at),
+  INDEX idx_api_logs_user (user_id),
+  INDEX idx_api_logs_route (route)
 );
 
 

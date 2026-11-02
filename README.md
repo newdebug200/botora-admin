@@ -50,6 +50,10 @@ DB_ONLINE_PASS=your_online_db_password
 APP_URL=https://admin.votredomaine.com
 APP_SECRET=votre-secret-aleatoire
 BOTORA_API_KEY=votre-cle-api-secrete
+BOTORA_SERVICE_KEY=abcd
+MAILER_DSN=smtp://username:password@smtp.example.com:587?encryption=tls&auth_mode=login
+MAIL_FROM=no-reply@votredomaine.com
+MAIL_FROM_NAME=Botora Admin
 ```
 
 En mode `auto` (par défaut), l'application choisit la connexion locale pour
@@ -98,6 +102,21 @@ Trois endpoints pour que Botora communique avec le panel :
 | `/api/features.php` | GET | Récupérer les fonctionnalités du plan |
 
 Chaque requête doit inclure le header `X-Api-Key: <BOTORA_API_KEY>`.
+
+La récupération de mot de passe utilise un **code numérique à 6 chiffres**, envoyé par e-mail sans URL. Le code expire après 15 minutes, est limité à 5 tentatives et est invalidé après une utilisation.
+
+| Endpoint | Méthode | Rôle |
+|---|---|---|
+| `/api/password-reset-request.php` | POST | Envoyer un code de récupération à l’adresse indiquée |
+| `/api/password-reset-confirm.php` | POST | Vérifier le code et enregistrer le nouveau mot de passe |
+
+Exemple de demande : `{"email":"utilisateur@example.com"}`. Exemple de confirmation : `{"email":"utilisateur@example.com","code":"123456","new_password":"nouveau-mot-de-passe"}`. Les e-mails sont envoyés avec Symfony Mailer via SMTP. Configurez `MAILER_DSN`, `MAIL_FROM` et `MAIL_FROM_NAME` dans `.env`, puis exécutez `composer install` sur le serveur pour installer les dépendances. Les appels de récupération provenant de `whatsapp-grok-platform` doivent inclure `X-Botora-Service-Key`; la même valeur doit être configurée dans `BOTORA_ADMIN_SERVICE_KEY` côté backend et `BOTORA_SERVICE_KEY` côté panneau.
+
+L’endpoint `/api/consume-central.php`, utilisé pour débiter les tokens IA, est également protégé par cette même clé interservices. Il refuse toute requête sans en-tête `X-Botora-Service-Key` valide.
+
+## Suppression de compte et historique WhatsApp
+
+Les utilisateurs envoient une demande de suppression avec un motif depuis Botora. La demande est visible dans `admin/account-deletion-requests.php`, où un administrateur peut la refuser ou valider la suppression définitive. Avant cette suppression, les numéros WhatsApp associés sont copiés dans `whatsapp_trial_history`. Cette table est volontairement indépendante du compte et conserve les numéros déjà utilisés pendant un essai gratuit afin d’empêcher la création successive de comptes d’essai avec le même numéro.
 
 ## Paiements FedaPay centralisés
 

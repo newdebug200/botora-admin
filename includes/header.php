@@ -18,7 +18,8 @@ $expiring_soon = (int) db()->query("SELECT COUNT(*) FROM users WHERE status='tri
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= h($pageTitle ?? 'Dashboard') ?> — Botora Admin</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  <link rel="stylesheet" href="<?= APP_URL ?>/assets/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="<?= h(APP_URL) ?>/assets/style.css?v=20260912-settings">
 </head>
 <body>
 <div class="layout">
@@ -38,19 +39,35 @@ $expiring_soon = (int) db()->query("SELECT COUNT(*) FROM users WHERE status='tri
         Utilisateurs
         <?php if ($trial_users > 0): ?><span class="badge-pill"><?= $trial_users ?></span><?php endif; ?>
       </a></li>
+      <li><a href="<?= APP_URL ?>/admin/account-deletion-requests.php" class="<?= ($activePage??'')==='account-deletion-requests'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm5 11H7v-2h10v2z"/></svg>
+        Suppressions demandées
+      </a></li>
+      <li><a href="<?= APP_URL ?>/admin/transactions.php" class="<?= ($activePage??'')==='transactions'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 7h18v10H3V7zm2 2v6h14V9H5zm2 2h4v2H7v-2zm6 0h4v2h-4v-2z"/></svg>
+        Transactions
+      </a></li>
+      <li><a href="<?= APP_URL ?>/admin/api-keys.php" class="<?= ($activePage??'')==='api-keys'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M7 14a5 5 0 1 1 3.9-8.13l8.23 8.23-2.12 2.12-1.41-1.41-1.42 1.42-1.41-1.42-1.42 1.42-1.41-1.41A5 5 0 0 1 7 14zm0-3a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+        Clés API
+      </a></li>
+      <li><a href="<?= APP_URL ?>/admin/api-logs.php" class="<?= ($activePage??'')==='api-logs'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M4 3h16v18H4V3zm2 2v14h12V5H6zm2 3h8v2H8V8zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/></svg>
+        Logs API
+      </a></li>
       <li><a href="<?= APP_URL ?>/admin/reports.php" class="<?= ($activePage??'')==='reports'?'active':'' ?>">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"/></svg>
         Rapports
-      </a></li>
-      <li><a href="<?= APP_URL ?>/admin/plans.php" class="<?= ($activePage??'')==='plans'?'active':'' ?>">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/></svg>
-        Plans
       </a></li>
       <?php if (is_superadmin()): ?>
       <li class="menu-section">Superadmin</li>
       <li><a href="<?= APP_URL ?>/admin/credits.php" class="<?= ($activePage??'')==='credits'?'active':'' ?>">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 16h-2v-2h2v2Zm2.07-7.25-.9.92C13.45 12.4 13 13 13 14h-2v-.5c0-.8.45-1.55 1.17-2.28l1.24-1.26A1.5 1.5 0 0 0 12.35 7.4c-.76 0-1.4.47-1.66 1.15l-1.85-.77A3.5 3.5 0 0 1 12.35 5a3.5 3.5 0 0 1 2.72 5.75Z"/></svg>
         Crédits
+      </a></li>
+      <li><a href="<?= APP_URL ?>/admin/credit-usage.php" class="<?= ($activePage??'')==='credit-usage'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 4v2h10V7H7zm0 4v2h7v-2H7zm0 4v2h10v-2H7z"/></svg>
+        Utilisation crédits
       </a></li>
       <li><a href="<?= APP_URL ?>/admin/features.php" class="<?= ($activePage??'')==='features'?'active':'' ?>">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65-2-3.46-2.49 1a7.06 7.06 0 0 0-1.69-.98L15 3h-4l-.36 2.93c-.6.25-1.16.58-1.69.98l-2.49-1-2 3.46 2.11 1.65a7.8 7.8 0 0 0 0 1.96l-2.11 1.65 2 3.46 2.49-1c.53.4 1.09.73 1.69.98L11 21h4l.36-2.93c.6-.25 1.16-.58 1.69-.98l2.49 1 2-3.46-2.11-1.65ZM13 15.5A3.5 3.5 0 1 1 13 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
@@ -59,6 +76,10 @@ $expiring_soon = (int) db()->query("SELECT COUNT(*) FROM users WHERE status='tri
       <li><a href="<?= APP_URL ?>/admin/settings.php" class="<?= ($activePage??'')==='settings'?'active':'' ?>">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 15.5A3.5 3.5 0 018.5 12 3.5 3.5 0 0112 8.5a3.5 3.5 0 013.5 3.5 3.5 3.5 0 01-3.5 3.5m7.43-2.92c.04-.3.07-.62.07-.95s-.03-.66-.07-1l2.16-1.65c.19-.15.24-.42.12-.64l-2.05-3.55c-.12-.22-.39-.3-.61-.22l-2.55 1.03c-.52-.4-1.08-.73-1.7-.98l-.38-2.71C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.71c-.62.25-1.18.58-1.7.98L4.88 5.08c-.22-.08-.49 0-.61.22L2.22 8.85c-.13.22-.07.49.12.64l2.16 1.65c-.04.34-.07.67-.07 1s.03.65.07.97l-2.16 1.66c-.19.15-.24.42-.12.64l2.05 3.55c.12.22.39.3.61.22l2.55-1.02c.52.4 1.08.73 1.7.98l.38 2.71c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.71c.62-.25 1.18-.58 1.7-.98l2.55 1.02c.22.08.49 0 .61-.22l2.05-3.55c.12-.22.07-.49-.12-.64l-2.16-1.66z"/></svg>
         Paramètres
+      </a></li>
+      <li><a href="<?= APP_URL ?>/admin/admin-team.php" class="<?= ($activePage??'')==='admin-team'?'active':'' ?>">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5s-3 1.34-3 3 1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Équipe admin
       </a></li>
       <?php endif; ?>
     </ul>

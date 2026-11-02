@@ -21,5 +21,6 @@ try {
   api_json(['ok' => true, 'status' => $status, 'approved' => $status === 'approved', 'credits' => $result['credits'], 'balance' => (float)$balanceStmt->fetchColumn(), 'message' => $status === 'approved' ? 'Paiement approuvé : crédits ajoutés.' : 'Paiement non approuvé (' . $status . ').']);
 } catch (Throwable $e) {
   error_log('[Botora Admin] FedaPay verify: ' . $e->getMessage());
+  api_log_set_error($e->getMessage());
   api_json(['ok' => false, 'error' => 'Vérification FedaPay temporairement indisponible.'], 502);
 }

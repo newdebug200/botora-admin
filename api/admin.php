@@ -7,7 +7,7 @@ $resource = strtolower(trim((string)($_GET['resource'] ?? 'overview')));
 $data = payment_request_json();
 
 function admin_user_payload(array $u): array {
-  return ['id'=>(int)$u['id'],'name'=>$u['name'],'email'=>$u['email'],'company'=>$u['company'],'phone'=>$u['phone'],'license_key'=>$u['license_key'],'status'=>$u['status'],'credits_balance'=>(float)$u['credits_balance'],'created_at'=>$u['created_at'],'plan_id'=>$u['plan_id'] ? (int)$u['plan_id'] : null];
+  return ['id'=>(int)$u['id'],'name'=>$u['name'],'email'=>$u['email'],'company'=>$u['company'],'phone'=>$u['phone'],'license_key'=>$u['license_key'],'status'=>$u['status'],'credits_balance'=>(float)$u['credits_balance'],'created_at'=>$u['created_at'],'plan_id'=>$u['plan_id'] ? (int)$u['plan_id'] : null,'trial_started_at'=>$u['trial_started_at'] ?? null,'trial_ends_at'=>$u['trial_ends_at'] ?? null,'trial_used'=>(bool)($u['trial_used'] ?? true),'subscription_started_at'=>$u['subscription_started_at'] ?? null,'subscription_ends_at'=>$u['subscription_ends_at'] ?? null,'control_center_access'=>array_key_exists('control_center_access', $u) && $u['control_center_access'] !== null ? (bool)$u['control_center_access'] : null];
 }
 function admin_read_body(): array { return $GLOBALS['data']; }
 
@@ -43,14 +43,15 @@ try {
     if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) api_json(['ok'=>false,'error'=>'Nom, email valide et mot de passe de 8 caractères minimum requis.'],400);
     $exists = $db->prepare('SELECT id FROM users WHERE email=? LIMIT 1'); $exists->execute([$email]);
     if ($exists->fetchColumn()) api_json(['ok'=>false,'error'=>'Cet email est déjà utilisé.'],409);
-    $planId = !empty($data['plan_id']) ? (int)$data['plan_id'] : null;
-    $status = in_array(($data['status'] ?? 'active'), ['trial','active','suspended','expired','banned'], true) ? $data['status'] : 'active';
-    $trialDays = max(0, (int)($data['trial_days'] ?? 14));
-    $trialEnd = $trialDays > 0 ? date('Y-m-d', strtotime("+$trialDays days")) : null;
+    $planId = $db->query("SELECT id FROM plans WHERE slug='free' AND is_active=1 LIMIT 1")->fetchColumn() ?: null;
+    $status = 'trial';
+    $now = botora_server_now($db);
+    $trialStart = $now->format('Y-m-d H:i:s');
+    $trialEnd = $now->modify('+14 days')->format('Y-m-d H:i:s');
     $license = generate_license();
     $hash = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $db->prepare('INSERT INTO users (name,email,password_hash,company,phone,plan_id,license_key,status,credits_balance,trial_ends_at,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
-    $stmt->execute([$name,$email,$hash,trim((string)($data['company'] ?? '')),trim((string)($data['phone'] ?? '')) ?: null,$planId,$license,$status,0,$trialEnd,trim((string)($data['notes'] ?? '')) ?: null]);
+    $stmt = $db->prepare('INSERT INTO users (name,email,password_hash,company,phone,plan_id,license_key,status,credits_balance,trial_started_at,trial_ends_at,trial_used,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    $stmt->execute([$name,$email,$hash,trim((string)($data['company'] ?? '')),trim((string)($data['phone'] ?? '')) ?: null,$planId,$license,$status,0,$trialStart,$trialEnd,1,trim((string)($data['notes'] ?? '')) ?: null]);
     $stmt = $db->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([(int)$db->lastInsertId()]);
     api_json(['ok'=>true,'user'=>admin_user_payload($stmt->fetch())],201);
   }
@@ -58,6 +59,7 @@ try {
     $user = payment_user($data); if (!$user) api_json(['ok'=>false,'error'=>'Utilisateur introuvable.'],404);
     $fields=[]; $params=[];
     foreach (['name','company','phone','status'] as $field) if (array_key_exists($field,$data)) { $fields[]="$field=?"; $params[] = trim((string)$data[$field]); }
+    if (array_key_exists('control_center_access', $data)) { $fields[]='control_center_access=?'; $params[] = filter_var($data['control_center_access'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0; }
     if (!$fields) api_json(['ok'=>false,'error'=>'Aucune modification.'],400);
     $params[]=(int)$user['id']; $db->prepare('UPDATE users SET '.implode(',', $fields).', updated_at=NOW() WHERE id=?')->execute($params);
     $stmt=$db->prepare('SELECT * FROM users WHERE id=?'); $stmt->execute([$user['id']]); api_json(['ok'=>true,'user'=>admin_user_payload($stmt->fetch())]);
@@ -69,34 +71,44 @@ try {
   }
   if ($resource === 'credits' && $method === 'POST') {
     $user = payment_user($data); $amount=(float)($data['amount'] ?? 0); if (!$user || !is_finite($amount) || $amount===0.0) api_json(['ok'=>false,'error'=>'Utilisateur ou montant invalide.'],400);
-    $db->beginTransaction();
-    $lock=$db->prepare('SELECT credits_balance FROM users WHERE id=? FOR UPDATE'); $lock->execute([$user['id']]); $balance=(float)$lock->fetchColumn(); $new=max(0,$balance+$amount);
-    $db->prepare('UPDATE users SET credits_balance=?,updated_at=NOW() WHERE id=?')->execute([$new,$user['id']]);
-    $db->prepare('INSERT INTO credit_logs (user_id,amount,type,reason,balance_after) VALUES (?,?,?,?,?)')->execute([$user['id'],$amount,$amount>0?'add':'consume',$data['reason']??'Ajustement admin',$new]); $db->commit();
-    api_json(['ok'=>true,'balance'=>$new]);
+    record_credit_adjustment((int)$user['id'], $amount, (string)($data['reason'] ?? 'Ajustement admin'), null);
+    $balanceStmt = $db->prepare('SELECT credits_balance FROM users WHERE id=?'); $balanceStmt->execute([(int)$user['id']]);
+    api_json(['ok'=>true,'balance'=>(float)$balanceStmt->fetchColumn()]);
   }
-  if ($resource === 'plans' && $method === 'GET') {
-    $plans = $db->query('SELECT * FROM plans ORDER BY price_xof ASC, price_eur ASC')->fetchAll();
-    foreach ($plans as &$plan) {
-      if ((float)($plan['price_xof'] ?? 0) <= 0 && (float)($plan['price_eur'] ?? 0) > 0) $plan['price_xof'] = round((float)$plan['price_eur'] * 655.957, 2);
-    }
-    unset($plan);
-    api_json(['ok'=>true,'plans'=>$plans]);
+  if ($resource === 'credit-config' && $method === 'GET') {
+    $config = credit_conversion($db);
+    api_json(['ok'=>true,'credit_config'=>$config]);
   }
-  if ($resource === 'plans' && $method === 'POST') {
-    $name=trim((string)($data['name']??'')); if ($name==='') api_json(['ok'=>false,'error'=>'Nom du plan requis.'],400);
-    $slug=preg_replace('/[^a-z0-9]+/','-',strtolower($name));
-    $stmt=$db->prepare('INSERT INTO plans (name,slug,credits_per_month,max_profiles,price_xof,is_active) VALUES (?,?,?,?,?,?)');
-    $stmt->execute([$name,$slug,(float)($data['credits_per_month']??$data['credits']??0),(int)($data['max_profiles']??1),max(0,(float)($data['price_xof']??$data['price']??0)),!empty($data['is_active'])?1:0]);
-    api_json(['ok'=>true,'id'=>(int)$db->lastInsertId()]);
+  if ($resource === 'credit-config' && in_array($method, ['POST','PUT','PATCH'], true)) {
+    $creditsPerUnit = (float)($data['credits_per_unit'] ?? 0);
+    $xofPerUnit = (float)($data['xof_per_unit'] ?? -1);
+    if (!is_finite($creditsPerUnit) || $creditsPerUnit <= 0 || !is_finite($xofPerUnit) || $xofPerUnit <= 0) api_json(['ok'=>false,'error'=>'Conversion crédits/XOF invalide.'],400);
+    $db->prepare('INSERT INTO credit_config (id,tokens_per_unit,credits_per_unit,xof_per_unit) VALUES (1,100000,?,?,?) ON DUPLICATE KEY UPDATE tokens_per_unit=100000,credits_per_unit=VALUES(credits_per_unit),xof_per_unit=VALUES(xof_per_unit)')->execute([$creditsPerUnit,$xofPerUnit]);
+    api_json(['ok'=>true,'credit_config'=>credit_conversion($db)]);
   }
-  if ($resource === 'plans' && $method === 'PATCH') {
-    $id=(int)($data['id']??0); if (!$id) api_json(['ok'=>false,'error'=>'Plan requis.'],400); $fields=[];$params=[];
-    foreach (['name','slug','credits_per_month','max_profiles','price_xof','is_active'] as $field) if (array_key_exists($field,$data)) {$fields[]="$field=?";$params[]=$data[$field];}
-    if (!$fields) api_json(['ok'=>false,'error'=>'Aucune modification.'],400); $params[]=$id; $db->prepare('UPDATE plans SET '.implode(',',$fields).' WHERE id=?')->execute($params); api_json(['ok'=>true]);
+  if ($resource === 'credit-usage' && $method === 'GET') {
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $perPage = min(1000, max(50, (int)($_GET['per_page'] ?? 50)));
+    $where = []; $params = [];
+    if (!empty($_GET['user_id'])) { $where[]='ul.user_id=?'; $params[]=(int)$_GET['user_id']; }
+    if (!empty($_GET['email'])) { $where[]='u.email=?'; $params[]=strtolower(trim((string)$_GET['email'])); }
+    $whereSql = $where ? ' WHERE '.implode(' AND ', $where) : '';
+    $countStmt=$db->prepare("SELECT COUNT(*) FROM usage_logs ul LEFT JOIN users u ON u.id=ul.user_id{$whereSql}"); $countStmt->execute($params); $total=(int)$countStmt->fetchColumn();
+    $offset=($page-1)*$perPage;
+    $stmt=$db->prepare("SELECT ul.id,ul.user_id,ul.event_type,ul.credits_used,ul.meta,ul.logged_at,u.name,u.email FROM usage_logs ul LEFT JOIN users u ON u.id=ul.user_id{$whereSql} ORDER BY ul.logged_at DESC,ul.id DESC LIMIT {$perPage} OFFSET {$offset}"); $stmt->execute($params);
+    api_json(['ok'=>true,'usage'=>$stmt->fetchAll(),'pagination'=>['page'=>$page,'per_page'=>$perPage,'total'=>$total,'pages'=>max(1,(int)ceil($total/$perPage))]]);
   }
-  if ($resource === 'plans' && $method === 'DELETE') {
-    $id=(int)($_GET['id']??$data['id']??0); if (!$id) api_json(['ok'=>false,'error'=>'Plan requis.'],400); $db->prepare('UPDATE plans SET is_active=0 WHERE id=?')->execute([$id]); api_json(['ok'=>true]);
+  if ($resource === 'subscription' && $method === 'GET') {
+    $config = $db->query('SELECT id,price_xof,duration_days,is_active,updated_at FROM subscription_config WHERE id=1 LIMIT 1')->fetch() ?: ['id'=>1,'price_xof'=>0,'duration_days'=>365,'is_active'=>0,'updated_at'=>null];
+    api_json(['ok'=>true,'subscription'=>['price_xof'=>(float)$config['price_xof'],'duration_days'=>(int)$config['duration_days'],'is_active'=>(bool)$config['is_active'],'updated_at'=>$config['updated_at']]]);
+  }
+  if ($resource === 'subscription' && in_array($method, ['POST','PUT','PATCH'], true)) {
+    $price = (float)($data['price_xof'] ?? -1);
+    $duration = 365;
+    $active = array_key_exists('is_active', $data) ? (int)filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN) : 1;
+    if (!is_finite($price) || $price < 0) api_json(['ok'=>false,'error'=>'Prix d’abonnement invalide.'],400);
+    $db->prepare('INSERT INTO subscription_config (id,price_xof,duration_days,is_active) VALUES (1,?,?,?) ON DUPLICATE KEY UPDATE price_xof=VALUES(price_xof),duration_days=VALUES(duration_days),is_active=VALUES(is_active)')->execute([$price,$duration,$active]);
+    api_json(['ok'=>true,'subscription'=>['price_xof'=>$price,'duration_days'=>$duration,'is_active'=>(bool)$active]]);
   }
   if ($resource === 'features' && $method === 'GET') api_json(['ok'=>true,'features'=>$db->query('SELECT * FROM platform_features ORDER BY feature_key')->fetchAll()]);
   if ($resource === 'features' && $method === 'PUT') {
@@ -110,5 +122,6 @@ try {
 } catch (Throwable $e) {
   if ($db->inTransaction()) $db->rollBack();
   error_log('[Botora Admin] admin API: '.$e->getMessage());
+  api_log_set_error($e->getMessage());
   api_json(['ok'=>false,'error'=>'Erreur interne de l’API admin.'],500);
 }

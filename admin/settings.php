@@ -1,104 +1,161 @@
 <?php
 $pageTitle = 'Paramètres'; $activePage = 'settings';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
 require_superadmin();
 
 $db = db();
-$admins = $db->query('SELECT id, name, email, role, created_at, last_login FROM admins ORDER BY id ASC')->fetchAll();
+$subscriptionConfig = $db->query('SELECT price_xof,duration_days,is_active FROM subscription_config WHERE id=1 LIMIT 1')->fetch() ?: ['price_xof'=>0,'duration_days'=>365,'is_active'=>0];
+$creditConfig = credit_conversion($db);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
-  if ($action === 'create_admin') {
-    $n = trim($_POST['name']); $e = trim($_POST['email']); $p = $_POST['password']; $r = $_POST['role'];
-    if ($n && filter_var($e, FILTER_VALIDATE_EMAIL) && strlen($p) >= 6 && in_array($r,['superadmin','admin','viewer'])) {
-      $db->prepare('INSERT INTO admins (name,email,password_hash,role) VALUES (?,?,?,?)')->execute([$n,$e,password_hash($p,PASSWORD_DEFAULT),$r]);
-      flash_set('success', 'Admin créé.');
-    } else { flash_set('danger','Données invalides (mot de passe ≥ 6 caractères).'); }
-  } elseif ($action === 'delete_admin') {
-    $aid = (int)$_POST['admin_id'];
-    if ($aid !== $_SESSION['admin_id']) {
-      $db->prepare('DELETE FROM admins WHERE id=?')->execute([$aid]);
-      flash_set('success', 'Admin supprimé.');
-    } else { flash_set('danger','Vous ne pouvez pas vous supprimer vous-même.'); }
+  if ($action === 'update_credit_conversion') {
+    $creditsPerUnit = (float)($_POST['credits_per_unit'] ?? 0);
+    $xofPerUnit = (float)($_POST['xof_per_unit'] ?? -1);
+    if (!is_finite($creditsPerUnit) || $creditsPerUnit <= 0 || !is_finite($xofPerUnit) || $xofPerUnit <= 0) {
+      flash_set('danger', 'La conversion crédits/XOF est invalide.');
+    } else {
+      $db->prepare('INSERT INTO credit_config (id,tokens_per_unit,credits_per_unit,xof_per_unit) VALUES (1,100000,?,?,?) ON DUPLICATE KEY UPDATE tokens_per_unit=100000,credits_per_unit=VALUES(credits_per_unit),xof_per_unit=VALUES(xof_per_unit)')->execute([$creditsPerUnit,$xofPerUnit]);
+      flash_set('success', 'Configuration de conversion des crédits enregistrée.');
+    }
+  } elseif ($action === 'update_subscription') {
+    $price = (float)($_POST['subscription_price_xof'] ?? 0);
+    $duration = 365;
+    $active = isset($_POST['subscription_active']) ? 1 : 0;
+    if (!is_finite($price) || $price < 0) {
+      flash_set('danger', 'Prix ou durée d’abonnement invalide.');
+    } else {
+      $db->prepare('INSERT INTO subscription_config (id,price_xof,duration_days,is_active) VALUES (1,?,?,?) ON DUPLICATE KEY UPDATE price_xof=VALUES(price_xof),duration_days=VALUES(duration_days),is_active=VALUES(is_active)')->execute([$price,$duration,$active]);
+      flash_set('success', 'Configuration de l’abonnement annuel enregistrée.');
+    }
   } elseif ($action === 'change_password') {
-    $p = $_POST['new_password'] ?? '';
-    if (strlen($p) >= 6) {
-      $db->prepare('UPDATE admins SET password_hash=? WHERE id=?')->execute([password_hash($p,PASSWORD_DEFAULT),$_SESSION['admin_id']]);
+    $currentPassword = (string)($_POST['current_password'] ?? '');
+    $newPassword = (string)($_POST['new_password'] ?? '');
+    $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+    $stmt = $db->prepare('SELECT password_hash FROM admins WHERE id=? LIMIT 1');
+    $stmt->execute([$_SESSION['admin_id']]);
+    $adminPasswordHash = (string)$stmt->fetchColumn();
+    if (!password_verify($currentPassword, $adminPasswordHash)) {
+      flash_set('danger','L’ancien mot de passe est incorrect.');
+    } elseif (strlen($newPassword) < 6) {
+      flash_set('danger','Le nouveau mot de passe doit contenir au moins 6 caractères.');
+    } elseif ($newPassword !== $confirmPassword) {
+      flash_set('danger','La confirmation du nouveau mot de passe ne correspond pas.');
+    } else {
+      $db->prepare('UPDATE admins SET password_hash=? WHERE id=?')->execute([password_hash($newPassword,PASSWORD_DEFAULT),$_SESSION['admin_id']]);
       flash_set('success','Mot de passe modifié.');
-    } else { flash_set('danger','Mot de passe trop court.'); }
+    }
   }
   header('Location: ' . APP_URL . '/admin/settings.php'); exit;
 }
+require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="page-header"><h1>Paramètres</h1></div>
 
-<div class="row-2col" style="align-items:start">
-  <div class="card">
-    <div class="card-header"><h2>Équipe admin</h2></div>
-    <table class="table">
-      <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Dernière connexion</th><th></th></tr></thead>
-      <tbody>
-        <?php foreach ($admins as $a): ?>
-        <tr>
-          <td><?= h($a['name']) ?></td>
-          <td><?= h($a['email']) ?></td>
-          <td><span class="badge <?= $a['role']==='superadmin'?'badge-danger':($a['role']==='admin'?'badge-primary':'badge-secondary') ?>"><?= h($a['role']) ?></span></td>
-          <td><?= format_datetime($a['last_login']) ?></td>
-          <td>
-            <?php if ($a['id'] !== $_SESSION['admin_id']): ?>
-            <form method="POST" onsubmit="return confirm('Supprimer cet admin ?')">
-              <input type="hidden" name="action" value="delete_admin">
-              <input type="hidden" name="admin_id" value="<?= $a['id'] ?>">
-              <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
-            </form>
-            <?php else: ?><span class="text-muted">Vous</span><?php endif; ?>
-          </td>
-        </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
-
-  <div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header"><h2>Créer un admin</h2></div>
-      <form method="POST" class="form-body">
-        <input type="hidden" name="action" value="create_admin">
-        <div class="form-group"><label>Nom</label><input type="text" name="name" class="form-control" required></div>
-        <div class="form-group"><label>Email</label><input type="email" name="email" class="form-control" required></div>
-        <div class="form-group"><label>Mot de passe</label><input type="password" name="password" class="form-control" required minlength="6"></div>
-        <div class="form-group">
-          <label>Rôle</label>
-          <select name="role" class="form-control">
-            <option value="viewer">Viewer (lecture seule)</option>
-            <option value="admin">Admin</option>
-            <option value="superadmin">Superadmin</option>
-          </select>
-        </div>
-        <button type="submit" class="btn btn-primary">Créer</button>
-      </form>
-    </div>
-
-    <div class="card">
-      <div class="card-header"><h2>Changer mon mot de passe</h2></div>
+<div class="settings-accordion" data-settings-accordion>
+  <section class="settings-accordion-item is-open">
+    <h2 class="settings-accordion-heading">
+      <button type="button" class="settings-accordion-trigger" aria-expanded="true" aria-controls="settings-panel-password">
+        <span><strong>Modifier le mot de passe</strong><small>Changer le mot de passe de votre compte administrateur</small></span>
+        <span class="settings-accordion-icon" aria-hidden="true">+</span>
+      </button>
+    </h2>
+    <div id="settings-panel-password" class="settings-accordion-panel" role="region">
       <form method="POST" class="form-body">
         <input type="hidden" name="action" value="change_password">
-        <div class="form-group"><label>Nouveau mot de passe</label><input type="password" name="new_password" class="form-control" required minlength="6"></div>
+        <div class="form-group"><label for="current-password">Ancien mot de passe</label><input id="current-password" type="password" name="current_password" class="form-control" required autocomplete="current-password"></div>
+        <div class="form-group"><label for="new-password">Nouveau mot de passe</label><input id="new-password" type="password" name="new_password" class="form-control" required minlength="6" autocomplete="new-password"></div>
+        <div class="form-group"><label for="confirm-password">Confirmer le nouveau mot de passe</label><input id="confirm-password" type="password" name="confirm_password" class="form-control" required minlength="6" autocomplete="new-password"></div>
         <button type="submit" class="btn btn-outline">Modifier</button>
       </form>
     </div>
-  </div>
+  </section>
+
+  <section class="settings-accordion-item">
+    <h2 class="settings-accordion-heading">
+      <button type="button" class="settings-accordion-trigger" aria-expanded="false" aria-controls="settings-panel-subscription">
+        <span><strong>Abonnement annuel</strong><small>Gérer le prix et la disponibilité de l’offre annuelle</small></span>
+        <span class="settings-accordion-icon" aria-hidden="true">+</span>
+      </button>
+    </h2>
+    <div id="settings-panel-subscription" class="settings-accordion-panel" role="region" hidden>
+      <form method="POST" class="form-body">
+        <input type="hidden" name="action" value="update_subscription">
+        <p class="text-muted">Le prix est facturé en francs CFA. La durée est calculée côté serveur et le renouvellement ne recrée jamais une période d’essai.</p>
+        <div class="form-row">
+          <div class="form-group"><label for="subscription-price">Prix annuel (XOF)</label><input id="subscription-price" type="number" name="subscription_price_xof" class="form-control" min="0" step="1" required value="<?= h((string)(int)$subscriptionConfig['price_xof']) ?>"></div>
+          <div class="form-group"><label for="subscription-duration">Durée</label><input id="subscription-duration" type="text" class="form-control" value="365 jours (1 an)" readonly></div>
+        </div>
+        <label class="checkbox-label"><input type="checkbox" name="subscription_active" <?= !empty($subscriptionConfig['is_active']) ? 'checked' : '' ?>> Offre disponible pour les utilisateurs</label>
+        <button type="submit" class="btn btn-primary">Enregistrer l’offre</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="settings-accordion-item">
+    <h2 class="settings-accordion-heading">
+      <button type="button" class="settings-accordion-trigger" aria-expanded="false" aria-controls="settings-panel-credits">
+        <span><strong>Conversion des crédits</strong><small>Définir la conversion des tokens et le prix des crédits</small></span>
+        <span class="settings-accordion-icon" aria-hidden="true">+</span>
+      </button>
+    </h2>
+    <div id="settings-panel-credits" class="settings-accordion-panel" role="region" hidden>
+      <form method="POST" class="form-body">
+        <input type="hidden" name="action" value="update_credit_conversion">
+        <p class="text-muted">Cette règle est utilisée pour les nouveaux paiements et les futures consommations. Les transactions et consommations historiques conservent toujours leur conversion d’origine.</p>
+        <div class="form-row">
+          <div class="form-group"><label for="credits-per-unit">Crédits pour 100 000 tokens</label><input id="credits-per-unit" type="number" name="credits_per_unit" class="form-control" min="0.0000000001" step="0.0000000001" required value="<?= h((string)$creditConfig['credits_per_unit']) ?>"></div>
+          <div class="form-group"><label for="xof-per-unit">Prix pour 100 000 tokens (XOF)</label><input id="xof-per-unit" type="number" name="xof_per_unit" class="form-control" min="0.01" step="0.01" required value="<?= h((string)$creditConfig['xof_per_unit']) ?>"></div>
+        </div>
+        <div class="info-row"><span>Unité de tokens</span><strong>100 000 tokens (fixe)</strong></div>
+        <div class="info-row"><span>Prix calculé par crédit</span><strong><?= number_format($creditConfig['xof_per_credit'], 2, ',', ' ') ?> XOF</strong></div>
+        <button type="submit" class="btn btn-primary">Enregistrer la conversion</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="settings-accordion-item">
+    <h2 class="settings-accordion-heading">
+      <button type="button" class="settings-accordion-trigger" aria-expanded="false" aria-controls="settings-panel-api">
+        <span><strong>Configuration API</strong><small>Consulter les clés et endpoints utilisés par la plateforme</small></span>
+        <span class="settings-accordion-icon" aria-hidden="true">+</span>
+      </button>
+    </h2>
+    <div id="settings-panel-api" class="settings-accordion-panel" role="region" hidden>
+      <div class="form-body">
+        <div class="info-row"><span>Clé API Botora</span><code><?= h(API_KEY) ?></code></div>
+        <div class="info-row"><span>Endpoint validate</span><code><?= h(BOTORA_API_URL) ?>/api/validate.php</code></div>
+        <div class="info-row"><span>Endpoint consume</span><code><?= h(BOTORA_API_URL) ?>/api/consume.php</code></div>
+        <div class="info-row"><span>Endpoint features</span><code><?= h(BOTORA_API_URL) ?>/api/features.php</code></div>
+        <p class="text-muted" style="margin-top:12px;font-size:.85rem">Configurez ces valeurs dans le fichier <code>config.php</code> sur votre serveur ou via variables d'environnement.</p>
+      </div>
+    </div>
+  </section>
 </div>
 
-<div class="card" style="margin-top:16px">
-  <div class="card-header"><h2>Configuration API</h2></div>
-  <div class="form-body">
-    <div class="info-row"><span>Clé API Botora</span><code><?= h(API_KEY) ?></code></div>
-    <div class="info-row"><span>Endpoint validate</span><code><?= h(BOTORA_API_URL) ?>/api/validate.php</code></div>
-    <div class="info-row"><span>Endpoint consume</span><code><?= h(BOTORA_API_URL) ?>/api/consume.php</code></div>
-    <div class="info-row"><span>Endpoint features</span><code><?= h(BOTORA_API_URL) ?>/api/features.php</code></div>
-    <p class="text-muted" style="margin-top:12px;font-size:.85rem">Configurez ces valeurs dans le fichier <code>config.php</code> sur votre serveur ou via variables d'environnement.</p>
-  </div>
-</div>
-
+<script>
+(function () {
+  const accordion = document.querySelector('[data-settings-accordion]');
+  if (!accordion) return;
+  const items = Array.from(accordion.querySelectorAll('.settings-accordion-item'));
+  items.forEach((item) => {
+    const trigger = item.querySelector('.settings-accordion-trigger');
+    const panel = item.querySelector('.settings-accordion-panel');
+    if (!trigger || !panel) return;
+    trigger.addEventListener('click', () => {
+      const willOpen = trigger.getAttribute('aria-expanded') !== 'true';
+      items.forEach((other) => {
+        const otherTrigger = other.querySelector('.settings-accordion-trigger');
+        const otherPanel = other.querySelector('.settings-accordion-panel');
+        const isCurrent = other === item;
+        other.classList.toggle('is-open', isCurrent && willOpen);
+        otherTrigger.setAttribute('aria-expanded', isCurrent && willOpen ? 'true' : 'false');
+        otherPanel.hidden = !(isCurrent && willOpen);
+      });
+    });
+  });
+}());
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

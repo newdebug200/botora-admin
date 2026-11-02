@@ -14,8 +14,9 @@ DirectoryIndex index.php
 # ------ Réécriture des URLs ------
 RewriteEngine On
 
-# Forcer HTTPS (recommandé en production)
+# Forcer HTTPS sur le site en ligne sans détourner les URLs de développement local.
 RewriteCond %{HTTPS} off
+RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 # Bloquer l'accès aux fichiers sensibles

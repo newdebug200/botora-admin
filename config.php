@@ -111,11 +111,14 @@ define('BOTORA_ADMIN_NAME', botora_setting('BOTORA_ADMIN_NAME') ?: 'Botora Super
 define('APP_NAME', 'Botora Admin');
 define('BOTORA_API_URL', rtrim(botora_setting('BOTORA_API_URL') ?: 'https://botora.bluelifetech.site', '/'));
 define('FEDAPAY_CALLBACK_URL', botora_setting('FEDAPAY_CALLBACK_URL') ?: BOTORA_API_URL . '/?payment=return');
-// L’URL publique est prioritaire. Une valeur localhost n’est acceptée que si
-// l’installation locale est détectée ou explicitement choisie par DB_MODE.
+// Une URL publique configurée ne doit pas détourner une session locale.
 $configuredAppUrl = trim((string)(botora_setting('APP_URL') ?: ''));
 $isLocalUrl = $configuredAppUrl !== '' && (bool)preg_match('/^https?:\\/\\/(localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0)(?::\\d+)?(?:$|\\/)/i', $configuredAppUrl);
-if ($configuredAppUrl === '' || ($isLocalUrl && DB_MODE !== 'local')) $configuredAppUrl = BOTORA_API_URL;
+if (DB_MODE === 'local' && ($configuredAppUrl === '' || !$isLocalUrl)) {
+  $configuredAppUrl = 'http://localhost:8000';
+} elseif (DB_MODE !== 'local' && ($configuredAppUrl === '' || $isLocalUrl)) {
+  $configuredAppUrl = BOTORA_API_URL;
+}
 define('APP_URL', rtrim($configuredAppUrl, '/'));
 define('APP_SECRET', botora_setting('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', botora_setting('BOTORA_API_KEY') ?: 'botora-api-key-change-me');

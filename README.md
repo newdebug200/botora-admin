@@ -22,24 +22,25 @@ mysql -u root -p < sql/schema.sql
 ### 3. Configurer
 Éditez `config.php` ou définissez ces variables d'environnement sur votre serveur :
 ```
-# Compatibilité historique : utilisée si DB_MODE=local
+# Compatibilité historique : valeurs de repli pour la connexion locale
 DB_HOST=localhost
 DB_NAME=botora_admin
 DB_USER=your_db_user
 DB_PASS=your_db_password
 
-# Source active : local, online ou dual
-DB_MODE=local
+# Sélection automatique : localhost/.local/.test => local, domaine public => online
+# Valeurs possibles : auto, local, online ou dual
+DB_MODE=auto
 DB_AUTO_MIGRATE=true
 
-# Connexion locale (utile en mode local ou dual)
+# Connexion locale
 DB_LOCAL_HOST=localhost
 DB_LOCAL_PORT=3306
 DB_LOCAL_NAME=botora_admin
 DB_LOCAL_USER=your_local_db_user
 DB_LOCAL_PASS=your_local_db_password
 
-# Connexion en ligne (utile en mode online ou dual)
+# Connexion en ligne
 DB_ONLINE_HOST=your-online-db-host
 DB_ONLINE_PORT=3306
 DB_ONLINE_NAME=botora_admin
@@ -50,6 +51,13 @@ APP_URL=https://admin.votredomaine.com
 APP_SECRET=votre-secret-aleatoire
 BOTORA_API_KEY=votre-cle-api-secrete
 ```
+
+En mode `auto` (par défaut), l'application choisit la connexion locale pour
+`localhost`, `0.0.0.0`, `127.x.x.x`, `::1` et les domaines `.localhost`,
+`.local` ou `.test`. Elle choisit la connexion en ligne pour les autres noms d'hôte.
+En ligne, configurez les variables `DB_ONLINE_*` dans l'environnement du
+serveur. `DB_MODE=local` ou `DB_MODE=online` permet de forcer une connexion ;
+`DB_MODE=dual` ouvre les deux bases, avec la base locale comme source active.
 
 ### 4. Créer le premier admin
 ```bash

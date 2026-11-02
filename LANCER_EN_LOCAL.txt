@@ -27,14 +27,25 @@ Ouvre MySQL (phpMyAdmin ou terminal) et exécute :
 
 ÉTAPE 3 — Configurer la connexion
 -----------------------------------
-Ouvre le fichier config.php et modifie ces lignes :
+La configuration par défaut détecte automatiquement l'environnement :
+un accès via localhost utilise MySQL local ; un domaine public utilise
+la configuration DB_ONLINE_*.
 
-  define('DB_HOST', 'localhost');
-  define('DB_NAME', 'botora_admin');
-  define('DB_USER', 'root');           <- ton utilisateur MySQL
-  define('DB_PASS', '');               <- ton mot de passe MySQL
-  define('APP_URL', 'http://localhost:8080');
-  define('API_KEY', 'change-moi-en-production');
+Pour forcer le mode local :
+  DB_MODE=local
+  DB_LOCAL_HOST=localhost
+  DB_LOCAL_PORT=3306
+  DB_LOCAL_NAME=botora_admin
+  DB_LOCAL_USER=root
+  DB_LOCAL_PASS=
+
+En production, définis DB_ONLINE_HOST, DB_ONLINE_PORT, DB_ONLINE_NAME,
+DB_ONLINE_USER et DB_ONLINE_PASS dans l'environnement du serveur PHP.
+DB_MODE=local ou DB_MODE=online permet de remplacer la détection automatique.
+Si ton installation MySQL locale utilise d'autres accès, définis les variables
+DB_LOCAL_* avant de lancer PHP.
+Pour l'URL, définis APP_URL=http://localhost:8080 et, si nécessaire,
+BOTORA_API_URL=http://localhost:8080.
 
 
 ÉTAPE 4 — Créer le premier compte admin
@@ -66,7 +77,7 @@ AVEC XAMPP / WAMP
 RÉSOLUTION DE PROBLÈMES
 ------------------------
 - Erreur PDO / connexion refusée :
-    Vérifie DB_USER et DB_PASS dans config.php
+    Vérifie DB_LOCAL_HOST, DB_LOCAL_PORT, DB_LOCAL_USER et DB_LOCAL_PASS.
 
 - Page blanche sans message d'erreur :
     Ajoute en haut de index.php :

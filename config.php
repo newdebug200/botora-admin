@@ -17,17 +17,41 @@ define('DB_PASS', botora_setting('DB_PASS') ?: '');
 
 // Base locale et base en ligne. En l'absence de valeurs dédiées, le mode
 // historique DB_* reste utilisé pour préserver la compatibilité.
-define('DB_LOCAL_HOST', botora_setting('DB_LOCAL_HOST') ?: 'localhost');
-define('DB_LOCAL_PORT', botora_setting('DB_LOCAL_PORT') ?: '3306');
-define('DB_LOCAL_NAME', botora_setting('DB_LOCAL_NAME') ?: 'botora_admin');
-define('DB_LOCAL_USER', botora_setting('DB_LOCAL_USER') ?: 'root');
-define('DB_LOCAL_PASS', botora_setting('DB_LOCAL_PASS') ?: '');
+define('DB_LOCAL_HOST', botora_setting('DB_LOCAL_HOST') ?: DB_HOST);
+define('DB_LOCAL_PORT', botora_setting('DB_LOCAL_PORT') ?: DB_PORT);
+define('DB_LOCAL_NAME', botora_setting('DB_LOCAL_NAME') ?: DB_NAME);
+define('DB_LOCAL_USER', botora_setting('DB_LOCAL_USER') ?: DB_USER);
+define('DB_LOCAL_PASS', botora_setting('DB_LOCAL_PASS') ?: DB_PASS);
 define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: 'localhost');
 define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: '3306');
 define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: 'u920435648_botora_dbname');
 define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: 'u920435648_botora_usrname');
 define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: 'nunewqi_DS3');
-define('DB_MODE', strtolower(botora_setting('DB_MODE') ?: 'online'));
+$configuredDbMode = strtolower(botora_setting('DB_MODE') ?: 'auto');
+if (!in_array($configuredDbMode, ['auto', 'local', 'online', 'dual'], true)) {
+  throw new RuntimeException('DB_MODE doit être auto, local, online ou dual.');
+}
+if ($configuredDbMode === 'auto') {
+  $serverHost = strtolower(rtrim(trim((string)($_SERVER['SERVER_NAME'] ?? '')), '.'));
+  if ($serverHost === '') $serverHost = strtolower(rtrim(trim((string)($_SERVER['HTTP_HOST'] ?? '')), '.'));
+  if (preg_match('/^\[([^\]]+)\](?::\d+)?$/', $serverHost, $hostMatch)) {
+    $serverHost = $hostMatch[1];
+  } else {
+    $serverHost = preg_replace('/:\d+$/', '', $serverHost);
+  }
+  $isLoopbackAddress = filter_var($serverHost, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+    && str_starts_with($serverHost, '127.');
+  $isLocalHost = $serverHost === ''
+    || $serverHost === 'localhost'
+    || $serverHost === '0.0.0.0'
+    || $serverHost === '::1'
+    || $isLoopbackAddress
+    || str_ends_with($serverHost, '.localhost')
+    || str_ends_with($serverHost, '.local')
+    || str_ends_with($serverHost, '.test');
+  $configuredDbMode = $isLocalHost ? 'local' : 'online';
+}
+define('DB_MODE', $configuredDbMode);
 define('DB_AUTO_MIGRATE', filter_var(botora_setting('DB_AUTO_MIGRATE') ?: 'true', FILTER_VALIDATE_BOOLEAN));
 
 // Premier compte créé automatiquement uniquement si aucun administrateur n’existe.
@@ -40,7 +64,7 @@ define('APP_NAME', 'Botora Admin');
 define('BOTORA_API_URL', rtrim(botora_setting('BOTORA_API_URL') ?: 'https://botora.bluelifetech.site', '/'));
 define('FEDAPAY_CALLBACK_URL', botora_setting('FEDAPAY_CALLBACK_URL') ?: BOTORA_API_URL . '/?payment=return');
 // L’URL publique est prioritaire. Une valeur localhost n’est acceptée que si
-// l’installation locale est explicitement choisie par DB_MODE=local.
+// l’installation locale est détectée ou explicitement choisie par DB_MODE.
 $configuredAppUrl = trim((string)(botora_setting('APP_URL') ?: ''));
 $isLocalUrl = $configuredAppUrl !== '' && (bool)preg_match('/^https?:\\/\\/(localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0)(?::\\d+)?(?:$|\\/)/i', $configuredAppUrl);
 if ($configuredAppUrl === '' || ($isLocalUrl && DB_MODE !== 'local')) $configuredAppUrl = BOTORA_API_URL;

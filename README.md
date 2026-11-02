@@ -50,6 +50,8 @@ DB_ONLINE_PASS=your_online_db_password
 APP_URL=https://admin.votredomaine.com
 APP_SECRET=votre-secret-aleatoire
 BOTORA_API_KEY=votre-cle-api-secrete
+# Clé locale de développement ; en production, remplacer par une clé forte
+# identique à BOTORA_ADMIN_SERVICE_KEY sur le backend WhatsApp.
 BOTORA_SERVICE_KEY=abcd
 MAILER_DSN=smtp://username:password@smtp.example.com:587?encryption=tls&auth_mode=login
 MAIL_FROM=no-reply@votredomaine.com
@@ -111,6 +113,11 @@ La récupération de mot de passe utilise un **code numérique à 6 chiffres**, 
 | `/api/password-reset-confirm.php` | POST | Vérifier le code et enregistrer le nouveau mot de passe |
 
 Exemple de demande : `{"email":"utilisateur@example.com"}`. Exemple de confirmation : `{"email":"utilisateur@example.com","code":"123456","new_password":"nouveau-mot-de-passe"}`. Les e-mails sont envoyés avec Symfony Mailer via SMTP. Configurez `MAILER_DSN`, `MAIL_FROM` et `MAIL_FROM_NAME` dans `.env`, puis exécutez `composer install` sur le serveur pour installer les dépendances. Les appels de récupération provenant de `whatsapp-grok-platform` doivent inclure `X-Botora-Service-Key`; la même valeur doit être configurée dans `BOTORA_ADMIN_SERVICE_KEY` côté backend et `BOTORA_SERVICE_KEY` côté panneau.
+
+En local, les deux projets utilisent la clé de développement `abcd` si aucune
+clé n’est définie. En production, configurez explicitement la même clé forte
+dans les deux environnements ; les opérations de consommation de crédits et de
+récupération de compte échouent volontairement avec HTTP 401 si elle manque.
 
 L’endpoint `/api/consume-central.php`, utilisé pour débiter les tokens IA, est également protégé par cette même clé interservices. Il refuse toute requête sans en-tête `X-Botora-Service-Key` valide.
 

@@ -1,7 +1,6 @@
-// Simple donut chart
-document.addEventListener('DOMContentLoaded', function () {
+function initializeAdminPage() {
   if (window.jQuery && $.fn.select2) {
-    $('.js-user-select').select2({
+    $('.js-user-select').not('.select2-hidden-accessible').select2({
       width: '100%',
       placeholder: function () { return $(this).data('placeholder'); },
       allowClear: true,
@@ -10,11 +9,13 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   var canvas = document.getElementById('statusChart');
-  if (!canvas || !window._chartData) return;
+  if (!canvas || !window._chartData || !canvas.getContext) return;
   var d = window._chartData;
   var total = d.active + d.trial + d.suspended;
-  if (!total) return;
   var ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!total) return;
   var cx = 100, cy = 100, r = 70, innerR = 45;
   var segments = [
     { value: d.active, color: '#10b981' },
@@ -45,4 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
   ctx.font = '11px sans-serif';
   ctx.fillStyle = '#6b7280';
   ctx.fillText('clients', cx, cy + 12);
-});
+}
+
+document.addEventListener('DOMContentLoaded', initializeAdminPage);
+document.addEventListener('botora:page-loaded', initializeAdminPage);

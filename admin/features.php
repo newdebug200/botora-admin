@@ -1,16 +1,19 @@
 <?php
 $pageTitle = 'Fonctionnalités'; $activePage = 'features';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
 require_superadmin();
 $db = db();
-$features = $db->query('SELECT feature_key,label,description,enabled,updated_at FROM platform_features ORDER BY feature_key ASC')->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $features = $db->query('SELECT feature_key,label,description,enabled,updated_at FROM platform_features ORDER BY feature_key ASC')->fetchAll();
   $enabled = $_POST['enabled'] ?? [];
   $stmt = $db->prepare('UPDATE platform_features SET enabled=? WHERE feature_key=?');
   foreach ($features as $feature) $stmt->execute([isset($enabled[$feature['feature_key']]) ? 1 : 0, $feature['feature_key']]);
   flash_set('success', 'Les fonctionnalités ont été mises à jour.');
   header('Location: ' . APP_URL . '/admin/features.php'); exit;
 }
+require_once __DIR__ . '/../includes/header.php';
+$features = $db->query('SELECT feature_key,label,description,enabled,updated_at FROM platform_features ORDER BY feature_key ASC')->fetchAll();
 ?>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
   <div><div class="text-uppercase small fw-bold text-success">Administration centrale</div><h1 class="mb-1">Fonctionnalités</h1><p class="text-muted mb-0">Décidez depuis Botora Admin ce qui est visible et disponible dans WhatsApp Grok Platform.</p></div>

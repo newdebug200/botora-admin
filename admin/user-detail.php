@@ -1,6 +1,8 @@
 <?php
 $pageTitle = 'Détail client'; $activePage = 'users';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
+auth_check();
 
 $db  = db();
 $id  = (int)($_GET['id'] ?? 0);
@@ -61,9 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $db->prepare('UPDATE users SET notes=?, updated_at=NOW() WHERE id=?')->execute([$notes, $id]);
     flash_set('success', 'Notes mises à jour.');
   }
-  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-    api_json(['ok'=>true,'message'=>flash_get()['msg'] ?? 'Action exécutée.']);
-  }
   header('Location: ' . APP_URL . '/admin/user-detail.php?id=' . $id); exit;
 }
 
@@ -93,6 +92,7 @@ $user_transactions->execute([$id]);
 $user_transactions = $user_transactions->fetchAll();
 
 $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_ends_at']) - time()) / 86400) : null;
+require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="page-header">
   <div>
@@ -121,7 +121,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <!-- Identity -->
   <div class="card">
     <div class="card-header"><h2>Informations et accès</h2></div>
-    <form method="POST" class="form-body js-admin-action" data-action-label="Informations mises à jour">
+    <form method="POST" class="form-body">
       <input type="hidden" name="action" value="update_identity">
       <div class="form-group"><label>Nom complet</label><input type="text" name="name" class="form-control" value="<?= h($user['name']) ?>" required></div>
       <div class="form-group"><label>Email de connexion</label><input type="email" name="email" class="form-control" value="<?= h($user['email']) ?>" required></div>
@@ -131,12 +131,10 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
     </form>
   </div>
 
-  <div id="admin-action-alert" class="alert d-none" role="alert"></div>
-
   <!-- Add credits -->
   <div class="card">
     <div class="card-header"><h2>Ajouter des crédits</h2></div>
-    <form method="POST" class="form-body js-admin-action" data-action-label="Crédits ajoutés">
+    <form method="POST" class="form-body">
       <input type="hidden" name="action" value="add_credits">
       <div class="form-group">
         <label>Montant</label>
@@ -153,7 +151,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <!-- Remove credits -->
   <div class="card">
     <div class="card-header"><h2>Retirer des crédits</h2></div>
-    <form method="POST" class="form-body js-admin-action" data-action-label="Crédits retirés">
+    <form method="POST" class="form-body">
       <input type="hidden" name="action" value="add_credits">
       <input type="hidden" name="direction" value="remove">
       <div class="form-group"><label>Montant</label><input type="number" name="amount" class="form-control" min="1" placeholder="Ex: 50" required></div>
@@ -165,7 +163,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <!-- Control center permission -->
   <div class="card">
     <div class="card-header"><h2>Centre de contrôle</h2></div>
-    <form method="POST" class="form-body js-admin-action">
+    <form method="POST" class="form-body">
       <input type="hidden" name="action" value="set_control_center_access">
       <div class="form-group"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" name="control_center_access" value="1" <?= $user['control_center_access'] ? 'checked' : '' ?>> Autoriser l’accès à l’administration de la plateforme</label><small class="text-muted">Ce droit est vérifié par WhatsApp Cloud Platform auprès de Botora Admin. Décoché, l’utilisateur ne pourra pas ouvrir le Centre de contrôle.</small></div>
       <button type="submit" class="btn btn-primary btn-block">Enregistrer le droit</button>
@@ -175,7 +173,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <!-- Access status -->
   <div class="card">
     <div class="card-header"><h2>Statut et accès</h2></div>
-    <form method="POST" class="form-body js-admin-action" data-action-label="Modification enregistrée" style="margin-bottom:12px">
+    <form method="POST" class="form-body" style="margin-bottom:12px">
       <input type="hidden" name="action" value="set_status">
       <div class="form-group">
         <label>Changer le statut</label>
@@ -207,7 +205,7 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   <!-- Notes -->
   <div class="card">
     <div class="card-header"><h2>Notes internes</h2></div>
-    <form method="POST" class="form-body js-admin-action" data-action-label="Notes mises à jour">
+    <form method="POST" class="form-body">
       <input type="hidden" name="action" value="update_notes">
       <textarea name="notes" class="form-control" rows="5"><?= h($user['notes'] ?? '') ?></textarea>
       <button type="submit" class="btn btn-outline" style="margin-top:8px">Sauvegarder</button>
@@ -307,22 +305,4 @@ $trial_days_left = $user['trial_ends_at'] ? (int)ceil((strtotime($user['trial_en
   </div>
 
 </div>
-<script>
-$(function () {
-  const $alert = $('#admin-action-alert');
-  function notify(type, message) {
-    $alert.removeClass('d-none alert-success alert-danger').addClass('alert-' + type).text(message).hide().fadeIn(180);
-    setTimeout(() => $alert.fadeOut(300, () => $alert.addClass('d-none')), 4500);
-  }
-  $('.js-admin-action').on('submit', function (event) {
-    event.preventDefault();
-    const $form = $(this), $button = $form.find('button[type=submit]'), original = $button.text();
-    $button.prop('disabled', true).text('Traitement…');
-    $.ajax({ url: window.location.href, method: 'POST', data: $form.serialize(), dataType: 'json' })
-      .done(function (response) { notify('success', response.message || ($form.data('action-label') + ' avec succès.')); setTimeout(() => window.location.reload(), 550); })
-      .fail(function (xhr) { notify('danger', xhr.responseJSON?.error || 'L’action n’a pas pu être exécutée.'); })
-      .always(function () { $button.prop('disabled', false).text(original); });
-  });
-});
-</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

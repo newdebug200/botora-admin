@@ -51,33 +51,35 @@ $users = $stmt->fetchAll();
           <td><a href="<?= APP_URL ?>/admin/user-detail.php?id=<?= (int)$u['id'] ?>" class="btn btn-sm btn-primary">Options</a></td>
         </tr>
       <?php endforeach; ?>
-      <tr id="no-user-result" <?= $users ? 'style="display:none"' : '' ?>><td colspan="8" class="text-center text-muted py-4">Aucun utilisateur trouvé.</td></tr>
+      <tr id="no-user-result" <?= $users ? 'hidden' : '' ?>><td colspan="8" class="text-center text-muted py-4">Aucun utilisateur trouvé.</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
 <script>
-$(function () {
-  const $input = $('#user-live-search');
-  const $rows = $('#users-table .user-row');
-  const $empty = $('#no-user-result');
-  const $count = $('#users-count');
-  const $result = $('#user-search-result');
+(() => {
+  const input = document.getElementById('user-live-search');
+  const rows = Array.from(document.querySelectorAll('#users-table .user-row'));
+  const empty = document.getElementById('no-user-result');
+  const count = document.getElementById('users-count');
+  const result = document.getElementById('user-search-result');
+  if (!input || !empty || !count || !result) return;
+
   function filterUsers() {
-    const query = $.trim($input.val()).toLowerCase();
+    const query = input.value.trim().toLowerCase();
     let visible = 0;
-    $rows.each(function () {
-      const match = !query || String($(this).data('user-search') || '').indexOf(query) !== -1;
-      $(this).toggle(match);
+    rows.forEach((row) => {
+      const match = !query || (row.dataset.userSearch || '').toLowerCase().includes(query);
+      row.hidden = !match;
       if (match) visible++;
     });
-    $empty.toggle(visible === 0);
-    $count.text('(' + visible + ')');
-    $result.text(query ? visible + ' résultat(s)' : 'Recherche instantanée sur les 500 derniers utilisateurs');
+    empty.hidden = visible !== 0;
+    count.textContent = '(' + visible + ')';
+    result.textContent = query ? visible + ' résultat(s)' : 'Recherche instantanée sur les 500 derniers utilisateurs';
   }
-  $input.on('input', filterUsers);
+  input.addEventListener('input', filterUsers);
   filterUsers();
-});
+})();
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

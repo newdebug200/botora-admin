@@ -1,6 +1,8 @@
 <?php
 $pageTitle = 'Nouveau client'; $activePage = 'users';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
+auth_check();
 
 $db = db();
 $freePlanId = $db->query("SELECT id FROM plans WHERE slug='free' AND is_active=1 LIMIT 1")->fetchColumn() ?: null;
@@ -37,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: ' . APP_URL . '/admin/user-detail.php?id=' . $user_id); exit;
   }
 }
+require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="page-header">
   <h1>Nouveau client</h1>

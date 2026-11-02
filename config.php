@@ -53,16 +53,10 @@ if ($envMode === 'prod') $envMode = 'online';
 if ($envMode === 'development') $envMode = 'local';
 
 $explicitMode = strtolower(trim((string)(botora_setting('DB_MODE') ?: '')));
-if ($explicitMode === '') {
-  $explicitMode = $envMode;
-}
-
 if ($explicitMode === 'prod') $explicitMode = 'online';
 if ($explicitMode === 'development') $explicitMode = 'local';
 
-
 define('APP_ENV', $envMode);
-define('DB_MODE', $explicitMode);
 define('DB_HOST', botora_setting('DB_HOST') ?: 'localhost');
 define('DB_PORT', botora_setting('DB_PORT') ?: '3306');
 define('DB_NAME', botora_setting('DB_NAME') ?: 'botora_admin');
@@ -80,8 +74,8 @@ define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: 'localhost');
 define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: '3306');
 define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: 'u920435648_botora_dbname');
 define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: 'u920435648_botora_usrname');
-define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: 'nunewqi_DS3');
-$configuredDbMode = strtolower(botora_setting('DB_MODE') ?: 'auto');
+define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: '');
+$configuredDbMode = $explicitMode !== '' ? $explicitMode : 'auto';
 if (!in_array($configuredDbMode, ['auto', 'local', 'online', 'dual'], true)) {
   throw new RuntimeException('DB_MODE doit être auto, local, online ou dual.');
 }
@@ -126,14 +120,14 @@ define('APP_URL', rtrim($configuredAppUrl, '/'));
 define('APP_SECRET', botora_setting('APP_SECRET') ?: 'change-this-secret-key-in-production');
 define('API_KEY', botora_setting('BOTORA_API_KEY') ?: 'botora-api-key-change-me');
 // Valeur pratique pour le développement local ; remplacer en production.
-define('BOTORA_SERVICE_KEY', botora_setting('BOTORA_SERVICE_KEY') ?: 'abcd');
+define('BOTORA_SERVICE_KEY', botora_setting('BOTORA_SERVICE_KEY') ?: '');
 // Authentification interservices désactivée pendant la phase de développement.
 define('APP_DEBUG', filter_var(botora_setting('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN));
 
 // FedaPay — use live keys only through server environment variables.
-define('FEDAPAY_SECRET_KEY', botora_setting('FEDAPAY_SECRET_KEY') ?: 'sk_live_0BBv8DpE_J_vDnw7RTMji51T');
-define('FEDAPAY_PUBLIC_KEY', botora_setting('FEDAPAY_PUBLIC_KEY') ?: 'pk_live_xWyQ7phiPrc31sE3503lex1j');
-define('FEDAPAY_WEBHOOK_SECRET', botora_setting('FEDAPAY_WEBHOOK_SECRET') ?: 'wh_live_9kJfHnYvh1asZKSjjFFvoG8o');
+define('FEDAPAY_SECRET_KEY', botora_setting('FEDAPAY_SECRET_KEY') ?: '');
+define('FEDAPAY_PUBLIC_KEY', botora_setting('FEDAPAY_PUBLIC_KEY') ?: '');
+define('FEDAPAY_WEBHOOK_SECRET', botora_setting('FEDAPAY_WEBHOOK_SECRET') ?: '');
 $fedapayApiUrl = trim((string)(botora_setting('FEDAPAY_API_URL') ?: 'https://api.fedapay.com'));
 $fedapayApiUrl = preg_replace('#/v1/?$#i', '', $fedapayApiUrl);
 define('FEDAPAY_API_URL', rtrim($fedapayApiUrl, '/'));

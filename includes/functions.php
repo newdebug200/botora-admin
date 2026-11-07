@@ -11,7 +11,7 @@ $GLOBALS['_botora_api_log'] = [
 ];
 
 function api_log_sanitize($value) {
-  $sensitive = ['password', 'password_hash', 'token', 'payment_token', 'secret', 'api_key', 'authorization', 'access_token'];
+  $sensitive = ['password', 'password_hash', 'token', 'ai_token', 'api_token', 'payment_token', 'secret', 'api_key', 'authorization', 'access_token'];
   if (is_array($value)) {
     $clean = [];
     foreach ($value as $key => $item) {
@@ -54,7 +54,12 @@ function api_log_write(array $response, int $statusCode): void {
       substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45) ?: null,
       substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 500) ?: null,
       json_encode($GLOBALS['_botora_api_log']['payload'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-      json_encode(api_log_sanitize($response), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+      json_encode(
+        !empty($GLOBALS['_botora_api_log']['suppress_response'])
+          ? ['ok' => ($statusCode >= 200 && $statusCode < 300), 'status_code' => $statusCode]
+          : api_log_sanitize($response),
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+      ),
       $error,
       $statusCode,
       (int)round((microtime(true) - $GLOBALS['_botora_api_log']['started_at']) * 1000),

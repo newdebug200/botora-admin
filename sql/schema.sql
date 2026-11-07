@@ -166,6 +166,20 @@ CREATE TABLE usage_logs (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Minute/day quotas shared by the AI proxy and individual user accounts.
+CREATE TABLE ai_proxy_usage_windows (
+  bucket_key VARCHAR(64) PRIMARY KEY,
+  rpm_window BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  rpm_count INT UNSIGNED NOT NULL DEFAULT 0,
+  rpd_window BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  rpd_count INT UNSIGNED NOT NULL DEFAULT 0,
+  tpm_window BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  tpm_tokens BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  tpd_window BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  tpd_tokens BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 -- Indexes
 CREATE INDEX idx_users_license ON users(license_key);
 CREATE INDEX idx_users_status ON users(status);

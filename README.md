@@ -53,6 +53,9 @@ BOTORA_API_KEY=votre-cle-api-secrete
 # Clé locale de développement ; en production, remplacer par une clé forte
 # identique à BOTORA_ADMIN_SERVICE_KEY sur le backend WhatsApp.
 BOTORA_SERVICE_KEY=abcd
+GROQ_API_KEY=clef-groq-du-serveur
+BOTORA_AI_TOKEN_SECRET=secret-aleatoire-d-au-moins-32-caracteres
+BOTORA_GROQ_RPM_LIMIT=25
 MAILER_DSN=smtp://username:password@smtp.example.com:587?encryption=tls&auth_mode=login
 MAIL_FROM=no-reply@votredomaine.com
 MAIL_FROM_NAME=Botora Admin
@@ -120,6 +123,24 @@ dans les deux environnements ; les opérations de consommation de crédits et de
 récupération de compte échouent volontairement avec HTTP 401 si elle manque.
 
 L’endpoint `/api/consume-central.php`, utilisé pour débiter les tokens IA, est également protégé par cette même clé interservices. Il refuse toute requête sans en-tête `X-Botora-Service-Key` valide.
+
+### Proxy IA pour Botora Desktop
+
+Botora Desktop transmet les conversations à `/api/ai-completion.php` avec un
+jeton utilisateur à durée limitée. Le serveur Botora Admin vérifie le compte,
+les crédits et les quotas avant d’appeler Groq. La clé `GROQ_API_KEY` et le
+secret `BOTORA_AI_TOKEN_SECRET` (au moins 32 caractères aléatoires) doivent
+rester dans l’environnement privé de l’hébergement Admin; ils ne doivent jamais
+être copiés dans `whatsapp-grok-platform` ni dans l’installateur Desktop.
+Les jetons utilisateur expirent après 7 jours et sont renouvelés à chaque
+connexion. Les journaux du proxy conservent les compteurs d’utilisation, pas
+les messages des conversations.
+
+Les limites globales et par compte sont configurables dans l’environnement
+Admin. Par défaut, le proxy limite Groq à 25 requêtes/minute et 900/jour, et un
+compte Desktop à 10 requêtes/minute et 300/jour. Ajustez ces plafonds selon les
+quotas réellement affichés dans votre console Groq, en laissant une marge pour
+les appels d’analyse et de mémoire qui accompagnent une réponse.
 
 ## Suppression de compte et historique WhatsApp
 

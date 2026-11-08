@@ -47,8 +47,18 @@ function botora_setting(string $key, string $default = ''): string {
 }
 
 function botora_detect_runtime_mode(): string {
-  $serverHost = strtolower(rtrim(trim((string)($_SERVER['SERVER_NAME'] ?? '')), '.'));
-  if ($serverHost === '') $serverHost = strtolower(rtrim(trim((string)($_SERVER['HTTP_HOST'] ?? '')), '.'));
+  $serverAddress = strtolower(trim((string)($_SERVER['SERVER_ADDR'] ?? '')));
+  $isLoopbackAddress = filter_var($serverAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+    && str_starts_with($serverAddress, '127.');
+  if ($serverAddress === 'localhost'
+    || $serverAddress === '0.0.0.0'
+    || $serverAddress === '::1'
+    || $isLoopbackAddress) {
+    return 'local';
+  }
+
+  $serverHost = strtolower(rtrim(trim((string)($_SERVER['HTTP_HOST'] ?? '')), '.'));
+  if ($serverHost === '') $serverHost = strtolower(rtrim(trim((string)($_SERVER['SERVER_NAME'] ?? '')), '.'));
   if (preg_match('/^\[([^\]]+)\](?::\d+)?$/', $serverHost, $hostMatch)) {
     $serverHost = $hostMatch[1];
   } else {

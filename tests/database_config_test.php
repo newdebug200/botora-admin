@@ -8,7 +8,8 @@ function load_database_config(
   array $overrides = [],
   string $serverName = 'botora.bluelifetech.site',
   array $environmentOnly = [],
-  string $httpHost = ''
+  string $httpHost = '',
+  string $serverAddress = '192.0.2.10'
 ): array {
   $environment = array_merge([
     'APP_ENV' => 'auto',
@@ -31,6 +32,7 @@ function load_database_config(
   }
   $bootstrap = '$_SERVER["SERVER_NAME"] = ' . var_export($serverName, true) . ';'
     . ' $_SERVER["HTTP_HOST"] = ' . var_export($httpHost, true) . ';'
+    . ' $_SERVER["SERVER_ADDR"] = ' . var_export($serverAddress, true) . ';'
     . ' $_ENV = array_merge($_ENV, ' . var_export($environmentOnly, true) . ');'
     . ' require ' . var_export($fixtureIncludes . DIRECTORY_SEPARATOR . 'db.php', true) . ';'
     . '$dbError = "";'
@@ -42,7 +44,9 @@ function load_database_config(
     . ' "name" => DB_ONLINE_NAME, "user" => DB_ONLINE_USER, "pass" => DB_ONLINE_PASS,'
     . ' "localHost" => DB_LOCAL_HOST, "localName" => DB_LOCAL_NAME, "localUser" => DB_LOCAL_USER,'
     . ' "localPass" => DB_LOCAL_PASS,'
-    . ' "dbError" => $dbError]);';
+    . ' "dbError" => $dbError, "activeSource" => db_active_source(),'
+    . ' "activeName" => db_config(db_active_source())["name"],'
+    . ' "activeUser" => db_config(db_active_source())["user"]]);';
   try {
     $pipes = [];
     $process = proc_open([PHP_BINARY, '-r', $bootstrap], [
@@ -136,10 +140,16 @@ $local = load_database_config([], 'localhost');
 expect_database_config($local['mode'] === 'local', 'Local hostname should select the local database.');
 expect_database_config($local['appEnv'] === 'local', 'APP_ENV=auto should follow the local hostname.');
 
-$httpHost = load_database_config([], '', [], 'botora.bluelifetech.site');
+$httpHost = load_database_config([], 'localhost', [], 'botora.bluelifetech.site');
 expect_database_config($httpHost['mode'] === 'online', 'Public HTTP_HOST should select the online database when SERVER_NAME is empty.');
 
-$explicitOnline = load_database_config(['DB_MODE' => 'online'], 'localhost');
+$localServerSpoof = load_database_config([], 'localhost', [], 'botora.bluelifetech.site', '127.0.0.1');
+expect_database_config(
+  $localServerSpoof['mode'] === 'local',
+  'A public Host header must not switch a loopback development server to the production database.'
+);
+
+$explicitOnline = load_database_config(['DB_MODE' => 'online'], 'localhost', [], '', '127.0.0.1');
 expect_database_config($explicitOnline['mode'] === 'online', 'Explicit DB_MODE=online should override local host detection.');
 expect_database_config($explicitOnline['appEnv'] === 'online', 'APP_ENV=auto should follow an explicit online DB mode.');
 
@@ -162,5 +172,7 @@ expect_database_config($profiles['localHost'] === 'localhost', 'Local profile sh
 expect_database_config($profiles['localName'] === 'local-database', 'Local mode should retain its independent database name.');
 expect_database_config($profiles['localUser'] === 'local-user', 'Local mode should retain its independent database user.');
 expect_database_config($profiles['localPass'] === 'local-password', 'Local mode should retain its independent database password.');
+expect_database_config($profiles['activeName'] === 'production-database', 'Active online mode should route to online database credentials.');
+expect_database_config($profiles['activeUser'] === 'production-user', 'Active online mode should route to the online database user.');
 
 echo "Database configuration tests passed.\n";

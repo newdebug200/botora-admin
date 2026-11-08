@@ -4,7 +4,7 @@ function expect_database_config(bool $condition, string $message): void {
   if (!$condition) throw new RuntimeException($message);
 }
 
-function load_database_config(array $overrides = []): array {
+function load_database_config(array $overrides = [], string $serverName = 'botora.bluelifetech.site'): array {
   $environment = array_merge([
     'APP_ENV' => 'online',
     'APP_URL' => 'https://botora.example',
@@ -15,10 +15,16 @@ function load_database_config(array $overrides = []): array {
     'DB_USER' => 'legacy-user',
     'DB_PASS' => 'legacy-password',
   ], $overrides);
-  $bootstrap = '$_SERVER["SERVER_NAME"] = "botora.bluelifetech.site";'
-    . ' require ' . var_export(__DIR__ . '/../config.php', true) . ';'
+  $bootstrap = '$_SERVER["SERVER_NAME"] = ' . var_export($serverName, true) . ';'
+    . ' require ' . var_export(__DIR__ . '/../includes/db.php', true) . ';'
+    . '$dbError = "";'
+    . 'if (DB_ONLINE_HOST === "" || DB_ONLINE_NAME === "" || DB_ONLINE_USER === "") {'
+    . ' try { db_pdo(db_config("online"), false); }'
+    . ' catch (RuntimeException $error) { $dbError = $error->getMessage(); }'
+    . '}'
     . ' echo json_encode(["mode" => DB_MODE, "host" => DB_ONLINE_HOST, "port" => DB_ONLINE_PORT,'
-    . ' "name" => DB_ONLINE_NAME, "user" => DB_ONLINE_USER, "pass" => DB_ONLINE_PASS]);';
+    . ' "name" => DB_ONLINE_NAME, "user" => DB_ONLINE_USER, "pass" => DB_ONLINE_PASS,'
+    . ' "localHost" => DB_LOCAL_HOST, "localUser" => DB_LOCAL_USER, "dbError" => $dbError]);';
   $pipes = [];
   $process = proc_open([PHP_BINARY, '-r', $bootstrap], [
     0 => ['pipe', 'r'],
@@ -58,5 +64,26 @@ expect_database_config($dedicated['port'] === '3308', 'Dedicated online port sho
 expect_database_config($dedicated['name'] === 'dedicated-database', 'Dedicated online name should take precedence.');
 expect_database_config($dedicated['user'] === 'dedicated-user', 'Dedicated online user should take precedence.');
 expect_database_config($dedicated['pass'] === 'dedicated-password', 'Dedicated online password should take precedence.');
+
+$missingOnline = load_database_config([
+  'DB_HOST' => '',
+  'DB_PORT' => '',
+  'DB_NAME' => '',
+  'DB_USER' => '',
+  'DB_PASS' => '',
+]);
+expect_database_config($missingOnline['mode'] === 'online', 'Public hostname should remain online without database credentials.');
+expect_database_config($missingOnline['host'] === '', 'Missing online host must not fall back to localhost.');
+expect_database_config($missingOnline['name'] === '', 'Missing online database must not fall back to a local database.');
+expect_database_config($missingOnline['user'] === '', 'Missing online user must not fall back to root.');
+expect_database_config($missingOnline['localHost'] === 'localhost', 'Local mode should retain the local host default.');
+expect_database_config($missingOnline['localUser'] === 'root', 'Local mode should retain the local user default.');
+expect_database_config(
+  $missingOnline['dbError'] === 'Configuration de base de données incomplète : hôte, nom ou utilisateur manquant.',
+  'Missing online credentials should fail clearly before attempting a local connection.'
+);
+
+$local = load_database_config([], 'localhost');
+expect_database_config($local['mode'] === 'local', 'Local hostname should select the local database.');
 
 echo "Database configuration tests passed.\n";

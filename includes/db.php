@@ -20,6 +20,11 @@ function db_dsn(array $cfg, bool $withDatabase = true): string {
 }
 
 function db_pdo(array $cfg, bool $withDatabase = true): PDO {
+  if (trim((string)($cfg['host'] ?? '')) === ''
+    || trim((string)($cfg['name'] ?? '')) === ''
+    || trim((string)($cfg['user'] ?? '')) === '') {
+    throw new RuntimeException('Configuration de base de données incomplète : hôte, nom ou utilisateur manquant.');
+  }
   return new PDO(db_dsn($cfg, $withDatabase), $cfg['user'], $cfg['pass'], [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

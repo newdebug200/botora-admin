@@ -66,8 +66,11 @@ En mode `auto` (par défaut), l'application choisit la connexion locale pour
 `.local` ou `.test`. Elle choisit la connexion en ligne pour les autres noms d'hôte.
 En ligne, configurez les variables `DB_ONLINE_*` dans l'environnement du
 serveur. Si elles sont absentes, les paramètres historiques `DB_HOST`,
-`DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASS` sont utilisés. `DB_MODE=local`
-ou `DB_MODE=online` permet de forcer une connexion ;
+`DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASS` sont utilisés uniquement s'ils
+sont définis. Les valeurs locales par défaut (`localhost`/`root`) ne sont
+jamais utilisées pour une connexion en ligne ; configurez les paramètres
+`DB_ONLINE_*` ou les anciens `DB_*`. `DB_MODE=local` ou `DB_MODE=online`
+permet de forcer une connexion ;
 `DB_MODE=dual` ouvre les deux bases, avec la base locale comme source active.
 
 ### 4. Créer le premier admin

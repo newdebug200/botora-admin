@@ -57,24 +57,29 @@ if ($explicitMode === 'prod') $explicitMode = 'online';
 if ($explicitMode === 'development') $explicitMode = 'local';
 
 define('APP_ENV', $envMode);
-define('DB_HOST', botora_setting('DB_HOST') ?: 'localhost');
-define('DB_PORT', botora_setting('DB_PORT') ?: '3306');
-define('DB_NAME', botora_setting('DB_NAME') ?: 'botora_admin');
-define('DB_USER', botora_setting('DB_USER') ?: 'root');
-define('DB_PASS', botora_setting('DB_PASS') ?: '');
+$legacyDbHost = botora_setting('DB_HOST');
+$legacyDbPort = botora_setting('DB_PORT');
+$legacyDbName = botora_setting('DB_NAME');
+$legacyDbUser = botora_setting('DB_USER');
+$legacyDbPass = botora_setting('DB_PASS');
+define('DB_HOST', $legacyDbHost ?: 'localhost');
+define('DB_PORT', $legacyDbPort ?: '3306');
+define('DB_NAME', $legacyDbName ?: 'botora_admin');
+define('DB_USER', $legacyDbUser ?: 'root');
+define('DB_PASS', $legacyDbPass);
 
 // Base locale et base en ligne. En l'absence de valeurs dédiées, le mode
-// historique DB_* reste utilisé pour préserver la compatibilité.
-define('DB_LOCAL_HOST', botora_setting('DB_LOCAL_HOST') ?: DB_HOST);
-define('DB_LOCAL_PORT', botora_setting('DB_LOCAL_PORT') ?: DB_PORT);
-define('DB_LOCAL_NAME', botora_setting('DB_LOCAL_NAME') ?: DB_NAME);
-define('DB_LOCAL_USER', botora_setting('DB_LOCAL_USER') ?: DB_USER);
-define('DB_LOCAL_PASS', botora_setting('DB_LOCAL_PASS') ?: DB_PASS);
-define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: DB_HOST);
-define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: DB_PORT);
-define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: DB_NAME);
-define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: DB_USER);
-define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: DB_PASS);
+// historique DB_* reste utilisé uniquement si ces variables sont définies.
+define('DB_LOCAL_HOST', botora_setting('DB_LOCAL_HOST') ?: ($legacyDbHost ?: 'localhost'));
+define('DB_LOCAL_PORT', botora_setting('DB_LOCAL_PORT') ?: ($legacyDbPort ?: '3306'));
+define('DB_LOCAL_NAME', botora_setting('DB_LOCAL_NAME') ?: ($legacyDbName ?: 'botora_admin'));
+define('DB_LOCAL_USER', botora_setting('DB_LOCAL_USER') ?: ($legacyDbUser ?: 'root'));
+define('DB_LOCAL_PASS', botora_setting('DB_LOCAL_PASS') ?: $legacyDbPass);
+define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: $legacyDbHost);
+define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: ($legacyDbPort ?: '3306'));
+define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: $legacyDbName);
+define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: $legacyDbUser);
+define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: $legacyDbPass);
 $configuredDbMode = $explicitMode !== '' ? $explicitMode : 'auto';
 if (!in_array($configuredDbMode, ['auto', 'local', 'online', 'dual'], true)) {
   throw new RuntimeException('DB_MODE doit être auto, local, online ou dual.');

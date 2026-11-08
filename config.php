@@ -70,11 +70,11 @@ define('DB_LOCAL_PORT', botora_setting('DB_LOCAL_PORT') ?: DB_PORT);
 define('DB_LOCAL_NAME', botora_setting('DB_LOCAL_NAME') ?: DB_NAME);
 define('DB_LOCAL_USER', botora_setting('DB_LOCAL_USER') ?: DB_USER);
 define('DB_LOCAL_PASS', botora_setting('DB_LOCAL_PASS') ?: DB_PASS);
-define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: 'localhost');
-define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: '3306');
-define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: 'u920435648_botora_dbname');
-define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: 'u920435648_botora_usrname');
-define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: '');
+define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: DB_HOST);
+define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: DB_PORT);
+define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: DB_NAME);
+define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: DB_USER);
+define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: DB_PASS);
 $configuredDbMode = $explicitMode !== '' ? $explicitMode : 'auto';
 if (!in_array($configuredDbMode, ['auto', 'local', 'online', 'dual'], true)) {
   throw new RuntimeException('DB_MODE doit être auto, local, online ou dual.');

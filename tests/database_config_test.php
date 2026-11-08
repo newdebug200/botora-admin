@@ -7,10 +7,11 @@ function expect_database_config(bool $condition, string $message): void {
 function load_database_config(
   array $overrides = [],
   string $serverName = 'botora.bluelifetech.site',
-  array $environmentOnly = []
+  array $environmentOnly = [],
+  string $httpHost = ''
 ): array {
   $environment = array_merge([
-    'APP_ENV' => 'online',
+    'APP_ENV' => 'auto',
     'APP_URL' => 'https://botora.example',
     'DB_MODE' => 'auto',
     'DB_HOST' => 'legacy-host',
@@ -29,6 +30,7 @@ function load_database_config(
     throw new RuntimeException('Could not prepare isolated configuration fixture.');
   }
   $bootstrap = '$_SERVER["SERVER_NAME"] = ' . var_export($serverName, true) . ';'
+    . ' $_SERVER["HTTP_HOST"] = ' . var_export($httpHost, true) . ';'
     . ' $_ENV = array_merge($_ENV, ' . var_export($environmentOnly, true) . ');'
     . ' require ' . var_export($fixtureIncludes . DIRECTORY_SEPARATOR . 'db.php', true) . ';'
     . '$dbError = "";'
@@ -36,9 +38,11 @@ function load_database_config(
     . ' try { db_pdo(db_config("online"), false); }'
     . ' catch (RuntimeException $error) { $dbError = $error->getMessage(); }'
     . '}'
-    . ' echo json_encode(["mode" => DB_MODE, "host" => DB_ONLINE_HOST, "port" => DB_ONLINE_PORT,'
+    . ' echo json_encode(["mode" => DB_MODE, "appEnv" => APP_ENV, "host" => DB_ONLINE_HOST, "port" => DB_ONLINE_PORT,'
     . ' "name" => DB_ONLINE_NAME, "user" => DB_ONLINE_USER, "pass" => DB_ONLINE_PASS,'
-    . ' "localHost" => DB_LOCAL_HOST, "localUser" => DB_LOCAL_USER, "dbError" => $dbError]);';
+    . ' "localHost" => DB_LOCAL_HOST, "localName" => DB_LOCAL_NAME, "localUser" => DB_LOCAL_USER,'
+    . ' "localPass" => DB_LOCAL_PASS,'
+    . ' "dbError" => $dbError]);';
   try {
     $pipes = [];
     $process = proc_open([PHP_BINARY, '-r', $bootstrap], [
@@ -67,6 +71,7 @@ function load_database_config(
 
 $legacy = load_database_config();
 expect_database_config($legacy['mode'] === 'online', 'Public production hostname should select the online database.');
+expect_database_config($legacy['appEnv'] === 'online', 'APP_ENV=auto should follow the public production hostname.');
 expect_database_config($legacy['host'] === 'legacy-host', 'Online host should fall back to legacy DB_HOST.');
 expect_database_config($legacy['port'] === '3307', 'Online port should fall back to legacy DB_PORT.');
 expect_database_config($legacy['name'] === 'legacy-database', 'Online name should fall back to legacy DB_NAME.');
@@ -117,7 +122,7 @@ $missingOnline = load_database_config([
   'DB_PASS' => '',
 ]);
 expect_database_config($missingOnline['mode'] === 'online', 'Public hostname should remain online without database credentials.');
-expect_database_config($missingOnline['host'] === '', 'Missing online host must not fall back to localhost.');
+expect_database_config($missingOnline['host'] === 'localhost', 'Online MySQL host should default to localhost.');
 expect_database_config($missingOnline['name'] === '', 'Missing online database must not fall back to a local database.');
 expect_database_config($missingOnline['user'] === '', 'Missing online user must not fall back to root.');
 expect_database_config($missingOnline['localHost'] === 'localhost', 'Local mode should retain the local host default.');
@@ -129,5 +134,33 @@ expect_database_config(
 
 $local = load_database_config([], 'localhost');
 expect_database_config($local['mode'] === 'local', 'Local hostname should select the local database.');
+expect_database_config($local['appEnv'] === 'local', 'APP_ENV=auto should follow the local hostname.');
+
+$httpHost = load_database_config([], '', [], 'botora.bluelifetech.site');
+expect_database_config($httpHost['mode'] === 'online', 'Public HTTP_HOST should select the online database when SERVER_NAME is empty.');
+
+$explicitOnline = load_database_config(['DB_MODE' => 'online'], 'localhost');
+expect_database_config($explicitOnline['mode'] === 'online', 'Explicit DB_MODE=online should override local host detection.');
+expect_database_config($explicitOnline['appEnv'] === 'online', 'APP_ENV=auto should follow an explicit online DB mode.');
+
+$profiles = load_database_config([
+  'DB_LOCAL_HOST' => 'localhost',
+  'DB_LOCAL_NAME' => 'local-database',
+  'DB_LOCAL_USER' => 'local-user',
+  'DB_LOCAL_PASS' => 'local-password',
+  'DB_ONLINE_HOST' => 'localhost',
+  'DB_ONLINE_NAME' => 'production-database',
+  'DB_ONLINE_USER' => 'production-user',
+  'DB_ONLINE_PASS' => 'production-password',
+]);
+expect_database_config($profiles['mode'] === 'online', 'Public hostname should select the online profile.');
+expect_database_config($profiles['host'] === 'localhost', 'Online profile should use localhost as its MySQL host.');
+expect_database_config($profiles['name'] === 'production-database', 'Online mode should use the online database name.');
+expect_database_config($profiles['user'] === 'production-user', 'Online mode should use the online database user.');
+expect_database_config($profiles['pass'] === 'production-password', 'Online mode should use the online database password.');
+expect_database_config($profiles['localHost'] === 'localhost', 'Local profile should use localhost as its MySQL host.');
+expect_database_config($profiles['localName'] === 'local-database', 'Local mode should retain its independent database name.');
+expect_database_config($profiles['localUser'] === 'local-user', 'Local mode should retain its independent database user.');
+expect_database_config($profiles['localPass'] === 'local-password', 'Local mode should retain its independent database password.');
 
 echo "Database configuration tests passed.\n";

@@ -46,17 +46,41 @@ function botora_setting(string $key, string $default = ''): string {
   return trim((string)$environmentValue) !== '' ? trim((string)$environmentValue) : $default;
 }
 
-$localEnvFileExists = is_file(__DIR__ . '/.env');
-$envMode = strtolower(trim((string)(botora_setting('APP_ENV') ?: '')));
-if ($envMode === '') {
-  $envMode = $localEnvFileExists ? 'local' : 'online';
+function botora_detect_runtime_mode(): string {
+  $serverHost = strtolower(rtrim(trim((string)($_SERVER['SERVER_NAME'] ?? '')), '.'));
+  if ($serverHost === '') $serverHost = strtolower(rtrim(trim((string)($_SERVER['HTTP_HOST'] ?? '')), '.'));
+  if (preg_match('/^\[([^\]]+)\](?::\d+)?$/', $serverHost, $hostMatch)) {
+    $serverHost = $hostMatch[1];
+  } else {
+    $serverHost = preg_replace('/:\d+$/', '', $serverHost);
+  }
+
+  $isLoopbackAddress = filter_var($serverHost, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+    && str_starts_with($serverHost, '127.');
+  $isLocalHost = $serverHost === ''
+    || $serverHost === 'localhost'
+    || $serverHost === '0.0.0.0'
+    || $serverHost === '::1'
+    || $isLoopbackAddress
+    || str_ends_with($serverHost, '.localhost')
+    || str_ends_with($serverHost, '.local')
+    || str_ends_with($serverHost, '.test');
+
+  return $isLocalHost ? 'local' : 'online';
 }
-if ($envMode === 'prod') $envMode = 'online';
-if ($envMode === 'development') $envMode = 'local';
 
 $explicitMode = strtolower(trim((string)(botora_setting('DB_MODE') ?: '')));
 if ($explicitMode === 'prod') $explicitMode = 'online';
 if ($explicitMode === 'development') $explicitMode = 'local';
+$detectedMode = botora_detect_runtime_mode();
+$configuredDbMode = $explicitMode !== '' && $explicitMode !== 'auto' ? $explicitMode : $detectedMode;
+
+$envMode = strtolower(trim((string)(botora_setting('APP_ENV') ?: '')));
+if ($envMode === 'prod' || $envMode === 'production') $envMode = 'online';
+if ($envMode === 'development') $envMode = 'local';
+if ($envMode === '' || $envMode === 'auto') {
+  $envMode = $configuredDbMode === 'online' ? 'online' : ($configuredDbMode === 'local' ? 'local' : $detectedMode);
+}
 
 define('APP_ENV', $envMode);
 $legacyDbHost = botora_setting('DB_HOST');
@@ -77,34 +101,14 @@ define('DB_LOCAL_PORT', botora_setting('DB_LOCAL_PORT') ?: ($legacyDbPort ?: '33
 define('DB_LOCAL_NAME', botora_setting('DB_LOCAL_NAME') ?: ($legacyDbName ?: 'botora_admin'));
 define('DB_LOCAL_USER', botora_setting('DB_LOCAL_USER') ?: ($legacyDbUser ?: 'root'));
 define('DB_LOCAL_PASS', botora_setting('DB_LOCAL_PASS') ?: $legacyDbPass);
-define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: $legacyDbHost);
+define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: ($legacyDbHost ?: 'localhost'));
 define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: ($legacyDbPort ?: '3306'));
 define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: $legacyDbName);
 define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: $legacyDbUser);
 define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: $legacyDbPass);
-$configuredDbMode = $explicitMode !== '' ? $explicitMode : 'auto';
-if (!in_array($configuredDbMode, ['auto', 'local', 'online', 'dual'], true)) {
+$validDbModes = ['local', 'online', 'dual'];
+if (!in_array($configuredDbMode, $validDbModes, true)) {
   throw new RuntimeException('DB_MODE doit être auto, local, online ou dual.');
-}
-if ($configuredDbMode === 'auto') {
-  $serverHost = strtolower(rtrim(trim((string)($_SERVER['SERVER_NAME'] ?? '')), '.'));
-  if ($serverHost === '') $serverHost = strtolower(rtrim(trim((string)($_SERVER['HTTP_HOST'] ?? '')), '.'));
-  if (preg_match('/^\[([^\]]+)\](?::\d+)?$/', $serverHost, $hostMatch)) {
-    $serverHost = $hostMatch[1];
-  } else {
-    $serverHost = preg_replace('/:\d+$/', '', $serverHost);
-  }
-  $isLoopbackAddress = filter_var($serverHost, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
-    && str_starts_with($serverHost, '127.');
-  $isLocalHost = $serverHost === ''
-    || $serverHost === 'localhost'
-    || $serverHost === '0.0.0.0'
-    || $serverHost === '::1'
-    || $isLoopbackAddress
-    || str_ends_with($serverHost, '.localhost')
-    || str_ends_with($serverHost, '.local')
-    || str_ends_with($serverHost, '.test');
-  $configuredDbMode = $isLocalHost ? 'local' : 'online';
 }
 define('DB_MODE', $configuredDbMode);
 define('DB_AUTO_MIGRATE', filter_var(botora_setting('DB_AUTO_MIGRATE') ?: 'true', FILTER_VALIDATE_BOOLEAN));

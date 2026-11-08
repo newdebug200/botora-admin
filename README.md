@@ -74,6 +74,9 @@ permet de forcer une connexion ;
 `DB_MODE=dual` ouvre les deux bases, avec la base locale comme source active.
 Les variables PHP sont lues depuis l'environnement du processus, `$_SERVER`,
 `$_ENV` ou le fichier `.env` local.
+En production, placez le fichier `.env` privé à la racine du déploiement,
+réglez `DB_MODE=online` et renseignez-y les variables `DB_ONLINE_*`. Ce fichier
+est exclu de Git ; ne versionnez jamais les identifiants de production.
 
 ### 4. Créer le premier admin
 ```bash

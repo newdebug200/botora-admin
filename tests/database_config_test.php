@@ -19,9 +19,18 @@ function load_database_config(
     'DB_USER' => 'legacy-user',
     'DB_PASS' => 'legacy-password',
   ], $overrides);
+  $fixtureRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'botora-db-config-' . bin2hex(random_bytes(8));
+  $fixtureIncludes = $fixtureRoot . DIRECTORY_SEPARATOR . 'includes';
+  if (!mkdir($fixtureIncludes, 0700, true)) {
+    throw new RuntimeException('Could not create isolated configuration fixture.');
+  }
+  if (!copy(__DIR__ . '/../config.php', $fixtureRoot . DIRECTORY_SEPARATOR . 'config.php')
+    || !copy(__DIR__ . '/../includes/db.php', $fixtureIncludes . DIRECTORY_SEPARATOR . 'db.php')) {
+    throw new RuntimeException('Could not prepare isolated configuration fixture.');
+  }
   $bootstrap = '$_SERVER["SERVER_NAME"] = ' . var_export($serverName, true) . ';'
     . ' $_ENV = array_merge($_ENV, ' . var_export($environmentOnly, true) . ');'
-    . ' require ' . var_export(__DIR__ . '/../includes/db.php', true) . ';'
+    . ' require ' . var_export($fixtureIncludes . DIRECTORY_SEPARATOR . 'db.php', true) . ';'
     . '$dbError = "";'
     . 'if (DB_ONLINE_HOST === "" || DB_ONLINE_NAME === "" || DB_ONLINE_USER === "") {'
     . ' try { db_pdo(db_config("online"), false); }'
@@ -30,23 +39,30 @@ function load_database_config(
     . ' echo json_encode(["mode" => DB_MODE, "host" => DB_ONLINE_HOST, "port" => DB_ONLINE_PORT,'
     . ' "name" => DB_ONLINE_NAME, "user" => DB_ONLINE_USER, "pass" => DB_ONLINE_PASS,'
     . ' "localHost" => DB_LOCAL_HOST, "localUser" => DB_LOCAL_USER, "dbError" => $dbError]);';
-  $pipes = [];
-  $process = proc_open([PHP_BINARY, '-r', $bootstrap], [
-    0 => ['pipe', 'r'],
-    1 => ['pipe', 'w'],
-    2 => ['pipe', 'w'],
-  ], $pipes, dirname(__DIR__), $environment);
-  if (!is_resource($process)) throw new RuntimeException('Could not start isolated PHP configuration test.');
-  fclose($pipes[0]);
-  $stdout = stream_get_contents($pipes[1]);
-  $stderr = stream_get_contents($pipes[2]);
-  fclose($pipes[1]);
-  fclose($pipes[2]);
-  $exitCode = proc_close($process);
-  if ($exitCode !== 0) throw new RuntimeException('Configuration subprocess failed: ' . $stderr);
-  $config = json_decode($stdout, true);
-  if (!is_array($config)) throw new RuntimeException('Configuration subprocess returned invalid JSON.');
-  return $config;
+  try {
+    $pipes = [];
+    $process = proc_open([PHP_BINARY, '-r', $bootstrap], [
+      0 => ['pipe', 'r'],
+      1 => ['pipe', 'w'],
+      2 => ['pipe', 'w'],
+    ], $pipes, $fixtureRoot, $environment);
+    if (!is_resource($process)) throw new RuntimeException('Could not start isolated PHP configuration test.');
+    fclose($pipes[0]);
+    $stdout = stream_get_contents($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $exitCode = proc_close($process);
+    if ($exitCode !== 0) throw new RuntimeException('Configuration subprocess failed: ' . $stderr);
+    $config = json_decode($stdout, true);
+    if (!is_array($config)) throw new RuntimeException('Configuration subprocess returned invalid JSON.');
+    return $config;
+  } finally {
+    @unlink($fixtureIncludes . DIRECTORY_SEPARATOR . 'db.php');
+    @unlink($fixtureRoot . DIRECTORY_SEPARATOR . 'config.php');
+    @rmdir($fixtureIncludes);
+    @rmdir($fixtureRoot);
+  }
 }
 
 $legacy = load_database_config();

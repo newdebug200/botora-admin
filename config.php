@@ -41,7 +41,9 @@ function botora_setting(string $key, string $default = ''): string {
   $value = getenv($key);
   if ($value !== false && trim((string)$value) !== '') return trim((string)$value);
   $serverValue = $_SERVER[$key] ?? '';
-  return trim((string)$serverValue) !== '' ? trim((string)$serverValue) : $default;
+  if (trim((string)$serverValue) !== '') return trim((string)$serverValue);
+  $environmentValue = $_ENV[$key] ?? '';
+  return trim((string)$environmentValue) !== '' ? trim((string)$environmentValue) : $default;
 }
 
 $localEnvFileExists = is_file(__DIR__ . '/.env');

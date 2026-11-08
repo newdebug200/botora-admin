@@ -4,7 +4,11 @@ function expect_database_config(bool $condition, string $message): void {
   if (!$condition) throw new RuntimeException($message);
 }
 
-function load_database_config(array $overrides = [], string $serverName = 'botora.bluelifetech.site'): array {
+function load_database_config(
+  array $overrides = [],
+  string $serverName = 'botora.bluelifetech.site',
+  array $environmentOnly = []
+): array {
   $environment = array_merge([
     'APP_ENV' => 'online',
     'APP_URL' => 'https://botora.example',
@@ -16,6 +20,7 @@ function load_database_config(array $overrides = [], string $serverName = 'botor
     'DB_PASS' => 'legacy-password',
   ], $overrides);
   $bootstrap = '$_SERVER["SERVER_NAME"] = ' . var_export($serverName, true) . ';'
+    . ' $_ENV = array_merge($_ENV, ' . var_export($environmentOnly, true) . ');'
     . ' require ' . var_export(__DIR__ . '/../includes/db.php', true) . ';'
     . '$dbError = "";'
     . 'if (DB_ONLINE_HOST === "" || DB_ONLINE_NAME === "" || DB_ONLINE_USER === "") {'
@@ -64,6 +69,29 @@ expect_database_config($dedicated['port'] === '3308', 'Dedicated online port sho
 expect_database_config($dedicated['name'] === 'dedicated-database', 'Dedicated online name should take precedence.');
 expect_database_config($dedicated['user'] === 'dedicated-user', 'Dedicated online user should take precedence.');
 expect_database_config($dedicated['pass'] === 'dedicated-password', 'Dedicated online password should take precedence.');
+
+$environmentOnly = load_database_config([], 'botora.bluelifetech.site', [
+  'DB_ONLINE_HOST' => 'host-from-env-superglobal',
+  'DB_ONLINE_NAME' => 'database-from-env-superglobal',
+  'DB_ONLINE_USER' => 'user-from-env-superglobal',
+  'DB_ONLINE_PASS' => 'password-from-env-superglobal',
+]);
+expect_database_config(
+  $environmentOnly['host'] === 'host-from-env-superglobal',
+  'Online host should be read from $_ENV when not available through getenv or $_SERVER.'
+);
+expect_database_config(
+  $environmentOnly['name'] === 'database-from-env-superglobal',
+  'Online database should be read from $_ENV when not available through getenv or $_SERVER.'
+);
+expect_database_config(
+  $environmentOnly['user'] === 'user-from-env-superglobal',
+  'Online user should be read from $_ENV when not available through getenv or $_SERVER.'
+);
+expect_database_config(
+  $environmentOnly['pass'] === 'password-from-env-superglobal',
+  'Online password should be read from $_ENV when not available through getenv or $_SERVER.'
+);
 
 $missingOnline = load_database_config([
   'DB_HOST' => '',

@@ -72,6 +72,8 @@ jamais utilisées pour une connexion en ligne ; configurez les paramètres
 `DB_ONLINE_*` ou les anciens `DB_*`. `DB_MODE=local` ou `DB_MODE=online`
 permet de forcer une connexion ;
 `DB_MODE=dual` ouvre les deux bases, avec la base locale comme source active.
+Les variables PHP sont lues depuis l'environnement du processus, `$_SERVER`,
+`$_ENV` ou le fichier `.env` local.
 
 ### 4. Créer le premier admin
 ```bash

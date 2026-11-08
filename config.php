@@ -113,9 +113,9 @@ define('DB_LOCAL_USER', botora_setting('DB_LOCAL_USER') ?: ($legacyDbUser ?: 'ro
 define('DB_LOCAL_PASS', botora_setting('DB_LOCAL_PASS') ?: $legacyDbPass);
 define('DB_ONLINE_HOST', botora_setting('DB_ONLINE_HOST') ?: ($legacyDbHost ?: 'localhost'));
 define('DB_ONLINE_PORT', botora_setting('DB_ONLINE_PORT') ?: ($legacyDbPort ?: '3306'));
-define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: $legacyDbName);
-define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: $legacyDbUser);
-define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: $legacyDbPass);
+define('DB_ONLINE_NAME', botora_setting('DB_ONLINE_NAME') ?: $legacyDbName ?: 'u920435648_botora_dbname');
+define('DB_ONLINE_USER', botora_setting('DB_ONLINE_USER') ?: $legacyDbUser ?: 'u920435648_botora_usrname');
+define('DB_ONLINE_PASS', botora_setting('DB_ONLINE_PASS') ?: $legacyDbPass ?: 'nunewqi_DS3');
 $validDbModes = ['local', 'online', 'dual'];
 if (!in_array($configuredDbMode, $validDbModes, true)) {
   throw new RuntimeException('DB_MODE doit être auto, local, online ou dual.');
